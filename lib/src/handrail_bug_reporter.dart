@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 import 'handrail_bug_reporter_config.dart';
@@ -44,9 +45,12 @@ class HandrailBugReporter extends StatefulWidget {
 }
 
 class _HandrailBugReporterState extends State<HandrailBugReporter> {
+  static const EventChannel _iosShakeChannel =
+      EventChannel('dev.handrail/bug_reporter/ios_shake');
+
   final GlobalKey _boundaryKey = GlobalKey();
   final Set<int> _activePointers = <int>{};
-  StreamSubscription<AccelerometerEvent>? _shakeSubscription;
+  StreamSubscription<dynamic>? _shakeSubscription;
   Timer? _threeFingerTimer;
   DateTime? _lastShakeAt;
   bool _opening = false;
@@ -85,8 +89,17 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
         !_shakeReportingEnabled) {
       return;
     }
-    _shakeSubscription =
-        accelerometerEventStream().listen(_handleAccelerometer);
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      _shakeSubscription = _iosShakeChannel.receiveBroadcastStream().listen(
+            (_) => _handleShakeDetected(),
+            onError: (_) {},
+          );
+      return;
+    }
+    _shakeSubscription = accelerometerEventStream().listen(
+      _handleAccelerometer,
+      onError: (_) {},
+    );
   }
 
   void _setShakeReportingEnabled(bool enabled) {
@@ -106,6 +119,10 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
     if (magnitude < 24) {
       return;
     }
+    _handleShakeDetected();
+  }
+
+  void _handleShakeDetected() {
     final now = DateTime.now();
     final lastShakeAt = _lastShakeAt;
     if (lastShakeAt != null &&
