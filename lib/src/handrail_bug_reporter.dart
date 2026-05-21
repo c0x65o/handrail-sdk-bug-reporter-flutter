@@ -147,7 +147,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
     }
     _opening = true;
     try {
-      final screenshotBase64 = await _captureScreenshotBase64();
+      final screenshot = await _captureScreenshot();
       if (!mounted) {
         return false;
       }
@@ -162,7 +162,8 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
         builder: (context) {
           return _ReportSheet(
             config: widget.config,
-            screenshotBase64: screenshotBase64,
+            screenshotBase64: screenshot.base64,
+            screenshotFailureReason: screenshot.failureReason,
             metadataProvider:
                 widget.metadataProvider ?? HandrailDeviceMetadataProvider(),
             clientFactory: widget.clientFactory,
@@ -179,22 +180,47 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
     }
   }
 
-  Future<String?> _captureScreenshotBase64() async {
+  Future<_ScreenshotCaptureResult> _captureScreenshot() async {
+    const stillRenderingReason =
+        'The screen was still rendering when the report opened.';
     try {
-      final boundary = _boundaryKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
-      if (boundary == null || boundary.debugNeedsPaint) {
-        return null;
+      for (var attempt = 0; attempt < 2; attempt += 1) {
+        final boundary = _boundaryKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
+        if (boundary == null) {
+          return const _ScreenshotCaptureResult.failure(
+            'The app screen was not ready for screenshot capture.',
+          );
+        }
+        if (boundary.debugNeedsPaint) {
+          if (attempt == 0) {
+            await WidgetsBinding.instance.endOfFrame;
+            if (!mounted) {
+              return const _ScreenshotCaptureResult.failure(
+                'The reporter closed before screenshot capture finished.',
+              );
+            }
+            continue;
+          }
+          return const _ScreenshotCaptureResult.failure(stillRenderingReason);
+        }
+        final image = await boundary.toImage(pixelRatio: 1);
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        image.dispose();
+        if (bytes == null) {
+          return const _ScreenshotCaptureResult.failure(
+            'Flutter did not return screenshot image bytes.',
+          );
+        }
+        return _ScreenshotCaptureResult.success(
+          base64Encode(bytes.buffer.asUint8List()),
+        );
       }
-      final image = await boundary.toImage(pixelRatio: 1);
-      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-      image.dispose();
-      if (bytes == null) {
-        return null;
-      }
-      return base64Encode(bytes.buffer.asUint8List());
-    } catch (_) {
-      return null;
+      return const _ScreenshotCaptureResult.failure(stillRenderingReason);
+    } catch (error) {
+      return _ScreenshotCaptureResult.failure(
+        'Screenshot capture failed: ${error.runtimeType}.',
+      );
     }
   }
 
@@ -213,10 +239,27 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
   }
 }
 
+class _ScreenshotCaptureResult {
+  const _ScreenshotCaptureResult._({
+    required this.base64,
+    required this.failureReason,
+  });
+
+  const _ScreenshotCaptureResult.success(String base64)
+      : this._(base64: base64, failureReason: null);
+
+  const _ScreenshotCaptureResult.failure(String failureReason)
+      : this._(base64: null, failureReason: failureReason);
+
+  final String? base64;
+  final String? failureReason;
+}
+
 class _ReportSheet extends StatefulWidget {
   const _ReportSheet({
     required this.config,
     required this.screenshotBase64,
+    required this.screenshotFailureReason,
     required this.metadataProvider,
     required this.shakeReportingEnabled,
     this.clientFactory,
@@ -225,6 +268,7 @@ class _ReportSheet extends StatefulWidget {
 
   final HandrailBugReporterConfig config;
   final String? screenshotBase64;
+  final String? screenshotFailureReason;
   final HandrailDeviceMetadataProvider metadataProvider;
   final bool shakeReportingEnabled;
   final HandrailBugReportClient Function(HandrailBugReporterConfig config)?
@@ -300,6 +344,9 @@ class _ReportSheetState extends State<_ReportSheet> {
             description: _descriptionController.text.trim(),
             screenshotBase64:
                 _includeScreenshot ? widget.screenshotBase64 : null,
+            screenshotCaptureError: widget.screenshotBase64 == null
+                ? widget.screenshotFailureReason
+                : null,
           ),
           device: metadata,
           profileKey: profileKey,
@@ -561,6 +608,13 @@ class _ReportSheetState extends State<_ReportSheet> {
                         screenshotBase64: widget.screenshotBase64!,
                       ),
                     ),
+                  ] else if (widget.screenshotFailureReason != null) ...[
+                    const SizedBox(height: 24),
+                    const Divider(height: 1),
+                    const SizedBox(height: 22),
+                    _ScreenshotUnavailable(
+                      reason: widget.screenshotFailureReason!,
+                    ),
                   ],
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 16),
@@ -596,6 +650,54 @@ class _ReportSheetState extends State<_ReportSheet> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScreenshotUnavailable extends StatelessWidget {
+  const _ScreenshotUnavailable({required this.reason});
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7E6),
+        border: Border.all(color: const Color(0xFFFFD48A)),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Screenshot unavailable',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: const Color(0xFF6D4700),
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              reason,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF6D4700),
+                    height: 1.25,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The report can still be sent without a screenshot.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF7A5B20),
+                    height: 1.25,
+                  ),
+            ),
+          ],
         ),
       ),
     );

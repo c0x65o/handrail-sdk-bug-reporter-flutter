@@ -23,11 +23,13 @@ class HandrailBugReportDraft {
     required this.title,
     required this.description,
     this.screenshotBase64,
+    this.screenshotCaptureError,
   });
 
   final String title;
   final String description;
   final String? screenshotBase64;
+  final String? screenshotCaptureError;
 }
 
 @immutable
@@ -47,6 +49,7 @@ class HandrailBugReportPayload {
     required this.description,
     required this.profileKey,
     required this.screenshotBase64,
+    this.screenshotCaptureError,
   });
 
   factory HandrailBugReportPayload.fromConfig({
@@ -70,6 +73,7 @@ class HandrailBugReportPayload {
       description: draft.description,
       profileKey: profileKey,
       screenshotBase64: draft.screenshotBase64,
+      screenshotCaptureError: draft.screenshotCaptureError,
     );
   }
 
@@ -87,6 +91,7 @@ class HandrailBugReportPayload {
   final String description;
   final String? profileKey;
   final String? screenshotBase64;
+  final String? screenshotCaptureError;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -104,6 +109,7 @@ class HandrailBugReportPayload {
       'description': description,
       'profile_key': profileKey,
       'screenshot_base64': screenshotBase64,
+      'screenshot_capture_error': screenshotCaptureError,
     };
   }
 

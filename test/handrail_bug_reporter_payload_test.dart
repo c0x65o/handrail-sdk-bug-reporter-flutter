@@ -22,6 +22,7 @@ void main() {
         title: 'Checkout freezes',
         description: 'The checkout screen locks after tapping submit.',
         screenshotBase64: 'png-base64',
+        screenshotCaptureError: null,
       ),
       device: const HandrailDeviceMetadata(
         platform: 'ios',
@@ -46,6 +47,7 @@ void main() {
       'description': 'The checkout screen locks after tapping submit.',
       'profile_key': 'profile-key',
       'screenshot_base64': 'png-base64',
+      'screenshot_capture_error': null,
     });
   });
 }
