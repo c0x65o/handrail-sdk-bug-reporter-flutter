@@ -47,6 +47,8 @@ class HandrailBugReporter extends StatefulWidget {
 class _HandrailBugReporterState extends State<HandrailBugReporter> {
   static const EventChannel _iosShakeChannel =
       EventChannel('dev.handrail/bug_reporter/ios_shake');
+  static const MethodChannel _screenshotChannel =
+      MethodChannel('dev.handrail/bug_reporter/screenshot');
 
   final GlobalKey _boundaryKey = GlobalKey();
   final Set<int> _activePointers = <int>{};
@@ -205,7 +207,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
         final boundary = _boundaryKey.currentContext?.findRenderObject()
             as RenderRepaintBoundary?;
         if (boundary == null) {
-          return const _ScreenshotCaptureResult.failure(
+          return await _captureNativeScreenshot(
             'The app screen was not ready for screenshot capture.',
           );
         }
@@ -219,13 +221,13 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
             }
             continue;
           }
-          return const _ScreenshotCaptureResult.failure(stillRenderingReason);
+          return await _captureNativeScreenshot(stillRenderingReason);
         }
         final image = await boundary.toImage(pixelRatio: 1);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         image.dispose();
         if (bytes == null) {
-          return const _ScreenshotCaptureResult.failure(
+          return await _captureNativeScreenshot(
             'Flutter did not return screenshot image bytes.',
           );
         }
@@ -233,10 +235,32 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
           base64Encode(bytes.buffer.asUint8List()),
         );
       }
-      return const _ScreenshotCaptureResult.failure(stillRenderingReason);
+      return await _captureNativeScreenshot(stillRenderingReason);
+    } catch (error) {
+      return _captureNativeScreenshot(
+        'Screenshot capture failed: ${error.runtimeType}.',
+      );
+    }
+  }
+
+  Future<_ScreenshotCaptureResult> _captureNativeScreenshot(
+    String flutterFailureReason,
+  ) async {
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
+      return _ScreenshotCaptureResult.failure(flutterFailureReason);
+    }
+    try {
+      final screenshotBase64 =
+          await _screenshotChannel.invokeMethod<String>('captureScreenshot');
+      if (screenshotBase64 == null || screenshotBase64.isEmpty) {
+        return _ScreenshotCaptureResult.failure(flutterFailureReason);
+      }
+      return _ScreenshotCaptureResult.success(screenshotBase64);
     } catch (error) {
       return _ScreenshotCaptureResult.failure(
-        'Screenshot capture failed: ${error.runtimeType}.',
+        '$flutterFailureReason Native fallback failed: ${error.runtimeType}.',
       );
     }
   }

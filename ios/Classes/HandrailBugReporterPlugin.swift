@@ -3,16 +3,30 @@ import UIKit
 import ObjectiveC.runtime
 
 public class HandrailBugReporterPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
-  private static let channelName = "dev.handrail/bug_reporter/ios_shake"
+  private static let shakeChannelName = "dev.handrail/bug_reporter/ios_shake"
+  private static let screenshotChannelName = "dev.handrail/bug_reporter/screenshot"
   private static var eventSink: FlutterEventSink?
   private static var swizzled = false
   private static var lastShakeAt: TimeInterval = 0
 
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterEventChannel(name: channelName, binaryMessenger: registrar.messenger())
+    let channel = FlutterEventChannel(name: shakeChannelName, binaryMessenger: registrar.messenger())
+    let screenshotChannel = FlutterMethodChannel(
+      name: screenshotChannelName,
+      binaryMessenger: registrar.messenger()
+    )
     let instance = HandrailBugReporterPlugin()
     channel.setStreamHandler(instance)
+    screenshotChannel.setMethodCallHandler(instance.handle)
     installShakeHook()
+  }
+
+  public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    guard call.method == "captureScreenshot" else {
+      result(FlutterMethodNotImplemented)
+      return
+    }
+    captureScreenshot(result: result)
   }
 
   public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
@@ -58,6 +72,61 @@ public class HandrailBugReporterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
     DispatchQueue.main.async {
       eventSink(["type": "shake", "platform": "ios"])
     }
+  }
+
+  private func captureScreenshot(result: FlutterResult) {
+    guard let window = Self.currentWindow() else {
+      result(FlutterError(
+        code: "NO_WINDOW",
+        message: "No iOS window is available for screenshot capture.",
+        details: nil
+      ))
+      return
+    }
+
+    let bounds = window.bounds
+    guard bounds.width > 0, bounds.height > 0 else {
+      result(FlutterError(
+        code: "WINDOW_NOT_READY",
+        message: "The iOS window is not ready for screenshot capture.",
+        details: nil
+      ))
+      return
+    }
+
+    UIGraphicsBeginImageContextWithOptions(bounds.size, false, UIScreen.main.scale)
+    defer {
+      UIGraphicsEndImageContext()
+    }
+
+    window.drawHierarchy(in: bounds, afterScreenUpdates: true)
+    guard
+      let image = UIGraphicsGetImageFromCurrentImageContext(),
+      let data = image.pngData()
+    else {
+      result(FlutterError(
+        code: "CAPTURE_FAILED",
+        message: "iOS did not return screenshot image bytes.",
+        details: nil
+      ))
+      return
+    }
+
+    result(data.base64EncodedString())
+  }
+
+  private static func currentWindow() -> UIWindow? {
+    if #available(iOS 13.0, *) {
+      return UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .flatMap { $0.windows }
+        .first { $0.isKeyWindow } ??
+        UIApplication.shared.connectedScenes
+          .compactMap { $0 as? UIWindowScene }
+          .flatMap { $0.windows }
+          .first
+    }
+    return UIApplication.shared.keyWindow
   }
 }
 

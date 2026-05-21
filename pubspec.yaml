@@ -1,7 +1,7 @@
 name: handrail_bug_reporter
 description: Reusable Flutter integration surface for submitting Handrail mobile bug reports.
 publish_to: none
-version: 0.1.5
+version: 0.1.6
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -21,5 +21,8 @@ dev_dependencies:
 flutter:
   plugin:
     platforms:
+      android:
+        package: dev.handrail.bugreporter
+        pluginClass: HandrailBugReporterPlugin
       ios:
         pluginClass: HandrailBugReporterPlugin
