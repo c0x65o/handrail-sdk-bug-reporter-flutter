@@ -1,0 +1,108 @@
+import 'package:flutter/foundation.dart';
+
+typedef HandrailProfileKeyProvider = Future<String?> Function();
+typedef HandrailRouteProvider = String? Function();
+
+const String defaultHandrailBugReportApiBaseUrl =
+    'https://dashboard.handrail-daas.com/api';
+
+@immutable
+class HandrailBugReporterTriggers {
+  const HandrailBugReporterTriggers({
+    this.shake = true,
+    this.threeFingerLongPress = true,
+    this.visibleEntry = false,
+  });
+
+  const HandrailBugReporterTriggers.disabled()
+      : shake = false,
+        threeFingerLongPress = false,
+        visibleEntry = false;
+
+  final bool shake;
+  final bool threeFingerLongPress;
+  final bool visibleEntry;
+
+  bool get hasGestureTrigger => shake || threeFingerLongPress;
+  bool get hasAnyTrigger => hasGestureTrigger || visibleEntry;
+}
+
+@immutable
+class HandrailBugReporterConfig {
+  const HandrailBugReporterConfig({
+    required this.projectSlug,
+    required this.environment,
+    required this.appVersion,
+    required this.buildNumber,
+    required this.reportToken,
+    this.apiBaseUrl = defaultHandrailBugReportApiBaseUrl,
+    this.appFlavor,
+    this.commitSha,
+    this.enabled = true,
+    this.allowProductionReporting = false,
+    this.triggers = const HandrailBugReporterTriggers(),
+    this.profileKeyProvider,
+    this.routeProvider,
+  });
+
+  factory HandrailBugReporterConfig.disabled() {
+    return const HandrailBugReporterConfig(
+      apiBaseUrl: '',
+      projectSlug: '',
+      environment: '',
+      appVersion: '',
+      buildNumber: '',
+      reportToken: '',
+      enabled: false,
+      triggers: HandrailBugReporterTriggers.disabled(),
+    );
+  }
+
+  final String apiBaseUrl;
+  final String projectSlug;
+  final String environment;
+  final String appVersion;
+  final String buildNumber;
+  final String reportToken;
+  final String? appFlavor;
+  final String? commitSha;
+  final bool enabled;
+  final bool allowProductionReporting;
+  final HandrailBugReporterTriggers triggers;
+  final HandrailProfileKeyProvider? profileKeyProvider;
+  final HandrailRouteProvider? routeProvider;
+
+  bool get isProduction => environment.trim().toLowerCase() == 'production';
+
+  bool get hasSubmissionConfig {
+    return enabled &&
+        apiBaseUrl.trim().isNotEmpty &&
+        projectSlug.trim().isNotEmpty &&
+        environment.trim().isNotEmpty &&
+        reportToken.trim().isNotEmpty;
+  }
+
+  bool get canInstallGestureHandlers {
+    return hasSubmissionConfig && triggers.hasGestureTrigger;
+  }
+
+  Future<bool> canOpenReporter() async {
+    if (!hasSubmissionConfig) {
+      return false;
+    }
+    if (!isProduction) {
+      return true;
+    }
+    if (!allowProductionReporting) {
+      return false;
+    }
+    final key = await profileKeyProvider?.call();
+    return key != null && key.trim().isNotEmpty;
+  }
+
+  Future<String?> resolveProfileKey() async {
+    final key = await profileKeyProvider?.call();
+    final trimmed = key?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+}
