@@ -5,6 +5,8 @@ import ObjectiveC.runtime
 public class HandrailBugReporterPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   private static let shakeChannelName = "dev.handrail/bug_reporter/ios_shake"
   private static let screenshotChannelName = "dev.handrail/bug_reporter/screenshot"
+  private static let maxScreenshotDimension: CGFloat = 1280
+  private static let jpegQuality: CGFloat = 0.72
   private static var eventSink: FlutterEventSink?
   private static var swizzled = false
   private static var lastShakeAt: TimeInterval = 0
@@ -94,16 +96,21 @@ public class HandrailBugReporterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
       return
     }
 
-    UIGraphicsBeginImageContextWithOptions(bounds.size, false, UIScreen.main.scale)
-    defer {
-      UIGraphicsEndImageContext()
+    let largestSide = max(bounds.width, bounds.height)
+    let maxScale = largestSide > 0 ? Self.maxScreenshotDimension / largestSide : UIScreen.main.scale
+    let outputScale = min(UIScreen.main.scale, maxScale)
+    let format = UIGraphicsImageRendererFormat.default()
+    format.opaque = true
+    format.scale = max(0.1, outputScale)
+
+    let renderer = UIGraphicsImageRenderer(size: bounds.size, format: format)
+    let image = renderer.image { context in
+      UIColor.white.setFill()
+      context.fill(bounds)
+      window.drawHierarchy(in: bounds, afterScreenUpdates: true)
     }
 
-    window.drawHierarchy(in: bounds, afterScreenUpdates: true)
-    guard
-      let image = UIGraphicsGetImageFromCurrentImageContext(),
-      let data = image.pngData()
-    else {
+    guard let data = image.jpegData(compressionQuality: Self.jpegQuality) else {
       result(FlutterError(
         code: "CAPTURE_FAILED",
         message: "iOS did not return screenshot image bytes.",
@@ -112,7 +119,11 @@ public class HandrailBugReporterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
       return
     }
 
-    result(data.base64EncodedString())
+    result([
+      "base64": data.base64EncodedString(),
+      "filename": "mobile-screenshot.jpg",
+      "mimeType": "image/jpeg"
+    ])
   }
 
   private static func currentWindow() -> UIWindow? {

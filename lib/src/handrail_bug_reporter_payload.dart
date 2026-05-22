@@ -23,12 +23,16 @@ class HandrailBugReportDraft {
     required this.title,
     required this.description,
     this.screenshotBase64,
+    this.screenshotFilename,
+    this.screenshotMimeType,
     this.screenshotCaptureError,
   });
 
   final String title;
   final String description;
   final String? screenshotBase64;
+  final String? screenshotFilename;
+  final String? screenshotMimeType;
   final String? screenshotCaptureError;
 }
 
@@ -49,6 +53,8 @@ class HandrailBugReportPayload {
     required this.description,
     required this.profileKey,
     required this.screenshotBase64,
+    this.screenshotFilename,
+    this.screenshotMimeType,
     this.screenshotCaptureError,
   });
 
@@ -73,6 +79,8 @@ class HandrailBugReportPayload {
       description: draft.description,
       profileKey: profileKey,
       screenshotBase64: draft.screenshotBase64,
+      screenshotFilename: draft.screenshotFilename,
+      screenshotMimeType: draft.screenshotMimeType,
       screenshotCaptureError: draft.screenshotCaptureError,
     );
   }
@@ -91,6 +99,8 @@ class HandrailBugReportPayload {
   final String description;
   final String? profileKey;
   final String? screenshotBase64;
+  final String? screenshotFilename;
+  final String? screenshotMimeType;
   final String? screenshotCaptureError;
 
   Map<String, Object?> toJson() {
@@ -109,6 +119,8 @@ class HandrailBugReportPayload {
       'description': description,
       'profile_key': profileKey,
       'screenshot_base64': screenshotBase64,
+      'screenshot_filename': screenshotFilename,
+      'screenshot_mime_type': screenshotMimeType,
       'screenshot_capture_error': screenshotCaptureError,
     };
   }

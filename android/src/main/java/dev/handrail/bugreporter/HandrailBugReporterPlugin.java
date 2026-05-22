@@ -3,10 +3,13 @@ package dev.handrail.bugreporter;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.util.Base64;
 import android.view.View;
 
 import java.io.ByteArrayOutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding;
@@ -18,6 +21,9 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 
 public class HandrailBugReporterPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
+  private static final int MAX_SCREENSHOT_DIMENSION = 1280;
+  private static final int JPEG_QUALITY = 72;
+
   private MethodChannel screenshotChannel;
   private Activity activity;
 
@@ -82,20 +88,44 @@ public class HandrailBugReporterPlugin implements FlutterPlugin, MethodCallHandl
     }
 
     Bitmap bitmap = null;
+    Bitmap outputBitmap = null;
     try {
       bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
       Canvas canvas = new Canvas(bitmap);
+      canvas.drawColor(Color.WHITE);
       rootView.draw(canvas);
 
+      outputBitmap = scaledBitmap(bitmap);
       ByteArrayOutputStream output = new ByteArrayOutputStream();
-      bitmap.compress(Bitmap.CompressFormat.PNG, 100, output);
-      result.success(Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP));
+      outputBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output);
+
+      Map<String, Object> response = new HashMap<>();
+      response.put("base64", Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP));
+      response.put("filename", "mobile-screenshot.jpg");
+      response.put("mimeType", "image/jpeg");
+      result.success(response);
     } catch (Exception error) {
       result.error("CAPTURE_FAILED", error.getClass().getSimpleName(), null);
     } finally {
+      if (outputBitmap != null && outputBitmap != bitmap) {
+        outputBitmap.recycle();
+      }
       if (bitmap != null) {
         bitmap.recycle();
       }
     }
+  }
+
+  private Bitmap scaledBitmap(Bitmap source) {
+    int width = source.getWidth();
+    int height = source.getHeight();
+    int largestSide = Math.max(width, height);
+    if (largestSide <= MAX_SCREENSHOT_DIMENSION) {
+      return source;
+    }
+    float scale = (float) MAX_SCREENSHOT_DIMENSION / (float) largestSide;
+    int scaledWidth = Math.max(1, Math.round(width * scale));
+    int scaledHeight = Math.max(1, Math.round(height * scale));
+    return Bitmap.createScaledBitmap(source, scaledWidth, scaledHeight, true);
   }
 }

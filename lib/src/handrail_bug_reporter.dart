@@ -49,6 +49,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
       EventChannel('dev.handrail/bug_reporter/ios_shake');
   static const MethodChannel _screenshotChannel =
       MethodChannel('dev.handrail/bug_reporter/screenshot');
+  static const double _maxScreenshotDimension = 1280;
 
   final GlobalKey _boundaryKey = GlobalKey();
   final Set<int> _activePointers = <int>{};
@@ -182,7 +183,9 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
           return _ReportSheet(
             config: widget.config,
             screenshotBase64: screenshot.base64,
+            screenshotFilename: screenshot.filename,
             screenshotFailureReason: screenshot.failureReason,
+            screenshotMimeType: screenshot.mimeType,
             metadataProvider:
                 widget.metadataProvider ?? HandrailDeviceMetadataProvider(),
             clientFactory: widget.clientFactory,
@@ -223,7 +226,12 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
           }
           return await _captureNativeScreenshot(stillRenderingReason);
         }
-        final image = await boundary.toImage(pixelRatio: 1);
+        final size = boundary.size;
+        final largestSide = math.max(size.width, size.height);
+        final pixelRatio = largestSide > _maxScreenshotDimension
+            ? _maxScreenshotDimension / largestSide
+            : 1.0;
+        final image = await boundary.toImage(pixelRatio: pixelRatio);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         image.dispose();
         if (bytes == null) {
@@ -233,6 +241,8 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
         }
         return _ScreenshotCaptureResult.success(
           base64Encode(bytes.buffer.asUint8List()),
+          filename: 'mobile-screenshot.png',
+          mimeType: 'image/png',
         );
       }
       return await _captureNativeScreenshot(stillRenderingReason);
@@ -252,12 +262,25 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
       return _ScreenshotCaptureResult.failure(flutterFailureReason);
     }
     try {
-      final screenshotBase64 =
-          await _screenshotChannel.invokeMethod<String>('captureScreenshot');
+      final screenshot =
+          await _screenshotChannel.invokeMethod<dynamic>('captureScreenshot');
+      final screenshotBase64 = screenshot is Map
+          ? screenshot['base64'] as String?
+          : screenshot is String
+              ? screenshot
+              : null;
       if (screenshotBase64 == null || screenshotBase64.isEmpty) {
         return _ScreenshotCaptureResult.failure(flutterFailureReason);
       }
-      return _ScreenshotCaptureResult.success(screenshotBase64);
+      return _ScreenshotCaptureResult.success(
+        screenshotBase64,
+        filename: screenshot is Map
+            ? screenshot['filename'] as String? ?? 'mobile-screenshot.png'
+            : 'mobile-screenshot.png',
+        mimeType: screenshot is Map
+            ? screenshot['mimeType'] as String? ?? 'image/png'
+            : 'image/png',
+      );
     } catch (error) {
       return _ScreenshotCaptureResult.failure(
         '$flutterFailureReason Native fallback failed: ${error.runtimeType}.',
@@ -283,24 +306,43 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
 class _ScreenshotCaptureResult {
   const _ScreenshotCaptureResult._({
     required this.base64,
+    required this.filename,
     required this.failureReason,
+    required this.mimeType,
   });
 
-  const _ScreenshotCaptureResult.success(String base64)
-      : this._(base64: base64, failureReason: null);
+  const _ScreenshotCaptureResult.success(
+    String base64, {
+    required String filename,
+    required String mimeType,
+  }) : this._(
+          base64: base64,
+          filename: filename,
+          failureReason: null,
+          mimeType: mimeType,
+        );
 
   const _ScreenshotCaptureResult.failure(String failureReason)
-      : this._(base64: null, failureReason: failureReason);
+      : this._(
+          base64: null,
+          filename: null,
+          failureReason: failureReason,
+          mimeType: null,
+        );
 
   final String? base64;
+  final String? filename;
   final String? failureReason;
+  final String? mimeType;
 }
 
 class _ReportSheet extends StatefulWidget {
   const _ReportSheet({
     required this.config,
     required this.screenshotBase64,
+    required this.screenshotFilename,
     required this.screenshotFailureReason,
+    required this.screenshotMimeType,
     required this.metadataProvider,
     required this.shakeReportingEnabled,
     this.clientFactory,
@@ -309,7 +351,9 @@ class _ReportSheet extends StatefulWidget {
 
   final HandrailBugReporterConfig config;
   final String? screenshotBase64;
+  final String? screenshotFilename;
   final String? screenshotFailureReason;
+  final String? screenshotMimeType;
   final HandrailDeviceMetadataProvider metadataProvider;
   final bool shakeReportingEnabled;
   final HandrailBugReportClient Function(HandrailBugReporterConfig config)?
@@ -385,6 +429,10 @@ class _ReportSheetState extends State<_ReportSheet> {
             description: _descriptionController.text.trim(),
             screenshotBase64:
                 _includeScreenshot ? widget.screenshotBase64 : null,
+            screenshotFilename:
+                _includeScreenshot ? widget.screenshotFilename : null,
+            screenshotMimeType:
+                _includeScreenshot ? widget.screenshotMimeType : null,
             screenshotCaptureError: widget.screenshotBase64 == null
                 ? widget.screenshotFailureReason
                 : null,
