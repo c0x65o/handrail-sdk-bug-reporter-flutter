@@ -93,9 +93,7 @@ class HandrailBugReporterConfig {
     if (!isProduction) {
       return true;
     }
-    if (!allowProductionReporting) {
-      return false;
-    }
+    if (allowProductionReporting) return true;
     final key = await profileKeyProvider?.call();
     return key != null && key.trim().isNotEmpty;
   }

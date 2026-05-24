@@ -45,8 +45,22 @@ void main() {
     expect(await config.canOpenReporter(), isFalse);
   });
 
-  test(
-      'environment gating allows production when profile key callback resolves',
+  test('environment gating allows production when policy flag is enabled',
+      () async {
+    const config = HandrailBugReporterConfig(
+      apiBaseUrl: 'https://example.test/api',
+      projectSlug: 'handrail',
+      environment: 'production',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+      allowProductionReporting: true,
+    );
+
+    expect(await config.canOpenReporter(), isTrue);
+  });
+
+  test('profile key callback trims production reporter profile keys',
       () async {
     var callbackCalls = 0;
     final config = HandrailBugReporterConfig(
@@ -65,6 +79,6 @@ void main() {
 
     expect(await config.canOpenReporter(), isTrue);
     expect(await config.resolveProfileKey(), 'trusted-profile');
-    expect(callbackCalls, 2);
+    expect(callbackCalls, 1);
   });
 }
