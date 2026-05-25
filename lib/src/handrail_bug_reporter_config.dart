@@ -36,6 +36,7 @@ class HandrailBugReporterConfig {
     required this.buildNumber,
     required this.reportToken,
     this.apiBaseUrl = defaultHandrailBugReportApiBaseUrl,
+    this.endpointPath,
     this.appFlavor,
     this.commitSha,
     this.enabled = true,
@@ -53,6 +54,7 @@ class HandrailBugReporterConfig {
       appVersion: '',
       buildNumber: '',
       reportToken: '',
+      endpointPath: null,
       enabled: false,
       triggers: HandrailBugReporterTriggers.disabled(),
     );
@@ -64,6 +66,7 @@ class HandrailBugReporterConfig {
   final String appVersion;
   final String buildNumber;
   final String reportToken;
+  final String? endpointPath;
   final String? appFlavor;
   final String? commitSha;
   final bool enabled;

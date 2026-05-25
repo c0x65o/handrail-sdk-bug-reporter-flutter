@@ -38,8 +38,8 @@ void main() {
     final result = await client.submit(payload);
 
     expect(result.isSuccess, isTrue);
-    expect(captured.url.toString(),
-        'https://example.test/api/mobile-bug-reports');
+    expect(
+        captured.url.toString(), 'https://example.test/api/mobile-bug-reports');
     expect(captured.headers['authorization'], 'Bearer report-token');
     expect(jsonDecode(captured.body), payload.toJson());
   });
@@ -61,6 +61,25 @@ void main() {
     expect(result.isSuccess, isTrue);
     expect(captured.headers['x-handrail-bug-report-token'], 'report-token');
     expect(captured.headers.containsKey('authorization'), isFalse);
+  });
+
+  test('submission honors configured endpoint path override', () async {
+    late http.Request captured;
+    final client = HandrailBugReportClient(
+      apiBaseUrl: 'https://example.test/api',
+      endpointPath: '/mobile-bug-reports',
+      reportToken: 'report-token',
+      httpClient: MockClient((request) async {
+        captured = request;
+        return http.Response('', 204);
+      }),
+    );
+
+    final result = await client.submit(payload);
+
+    expect(result.isSuccess, isTrue);
+    expect(
+        captured.url.toString(), 'https://example.test/api/mobile-bug-reports');
   });
 
   test('submission error reports non-2xx responses', () async {

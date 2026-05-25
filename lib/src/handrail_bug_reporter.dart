@@ -417,6 +417,7 @@ class _ReportSheetState extends State<_ReportSheet> {
         HandrailBugReportClient(
           apiBaseUrl: widget.config.apiBaseUrl,
           reportToken: widget.config.reportToken,
+          endpointPath: widget.config.endpointPath,
         );
     try {
       final profileKey = await widget.config.resolveProfileKey();

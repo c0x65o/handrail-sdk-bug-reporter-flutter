@@ -34,21 +34,27 @@ class HandrailBugReportClient {
   HandrailBugReportClient({
     required String apiBaseUrl,
     required String reportToken,
+    String? endpointPath,
     http.Client? httpClient,
     bool useBearerToken = true,
   })  : _apiBaseUrl = apiBaseUrl,
         _reportToken = reportToken,
+        _endpointPath = endpointPath,
         _httpClient = httpClient ?? http.Client(),
         _ownsClient = httpClient == null,
         _useBearerToken = useBearerToken;
 
   final String _apiBaseUrl;
   final String _reportToken;
+  final String? _endpointPath;
   final http.Client _httpClient;
   final bool _ownsClient;
   final bool _useBearerToken;
 
-  Uri get endpoint => _mobileBugReportsEndpoint(_apiBaseUrl);
+  Uri get endpoint => _mobileBugReportsEndpoint(
+        _apiBaseUrl,
+        endpointPath: _endpointPath,
+      );
 
   Future<HandrailBugReportSubmissionResult> submit(
     HandrailBugReportPayload payload,
@@ -91,11 +97,14 @@ class HandrailBugReportClient {
   }
 }
 
-Uri _mobileBugReportsEndpoint(String apiBaseUrl) {
+Uri _mobileBugReportsEndpoint(String apiBaseUrl, {String? endpointPath}) {
   final trimmed = apiBaseUrl.trim();
   final base = Uri.parse(trimmed.endsWith('/') ? trimmed : '$trimmed/');
-  final path = base.path.endsWith('/api/')
-      ? '${base.path}mobile-bug-reports'
-      : '${base.path}api/mobile-bug-reports';
+  final configuredEndpoint = endpointPath?.trim();
+  final path = configuredEndpoint != null && configuredEndpoint.isNotEmpty
+      ? '${base.path}${configuredEndpoint.startsWith('/') ? configuredEndpoint.substring(1) : configuredEndpoint}'
+      : base.path.endsWith('/api/')
+          ? '${base.path}mobile-bug-reports'
+          : '${base.path}api/mobile-bug-reports';
   return base.replace(path: path.replaceAll(RegExp('/+'), '/'));
 }
