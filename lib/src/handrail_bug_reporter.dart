@@ -276,7 +276,13 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
     }
     _opening = true;
     try {
-      final screenshot = await _captureScreenshot();
+      final appBrightness = Theme.of(targetContext).brightness;
+      final screenshot = await _captureScreenshot().timeout(
+        const Duration(milliseconds: 750),
+        onTimeout: () => const _ScreenshotCaptureResult.failure(
+          'Screenshot capture timed out before the report opened.',
+        ),
+      );
       if (!mounted || !targetContext.mounted) {
         return const HandrailBugReporterOpenResult.blocked(
           'Bug reporter closed before the report sheet could open.',
@@ -298,6 +304,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
             screenshotFilename: screenshot.filename,
             screenshotFailureReason: screenshot.failureReason,
             screenshotMimeType: screenshot.mimeType,
+            appBrightness: appBrightness,
             metadataProvider:
                 widget.metadataProvider ?? HandrailDeviceMetadataProvider(),
             clientFactory: widget.clientFactory,
@@ -332,7 +339,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
         }
         if (boundary.debugNeedsPaint) {
           if (attempt == 0) {
-            await WidgetsBinding.instance.endOfFrame;
+            await _waitForEndOfFrame();
             if (!mounted) {
               return const _ScreenshotCaptureResult.failure(
                 'The reporter closed before screenshot capture finished.',
@@ -366,6 +373,16 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
       return _captureNativeScreenshot(
         'Screenshot capture failed: ${error.runtimeType}.',
       );
+    }
+  }
+
+  Future<void> _waitForEndOfFrame() async {
+    try {
+      await WidgetsBinding.instance.endOfFrame.timeout(
+        const Duration(milliseconds: 250),
+      );
+    } on TimeoutException {
+      // Continue to the fallback path instead of blocking the reporter.
     }
   }
 
@@ -459,6 +476,7 @@ class _ReportSheet extends StatefulWidget {
     required this.screenshotFilename,
     required this.screenshotFailureReason,
     required this.screenshotMimeType,
+    required this.appBrightness,
     required this.metadataProvider,
     required this.shakeReportingEnabled,
     this.clientFactory,
@@ -470,6 +488,7 @@ class _ReportSheet extends StatefulWidget {
   final String? screenshotFilename;
   final String? screenshotFailureReason;
   final String? screenshotMimeType;
+  final Brightness appBrightness;
   final HandrailDeviceMetadataProvider metadataProvider;
   final bool shakeReportingEnabled;
   final HandrailBugReportClient Function(HandrailBugReporterConfig config)?
@@ -553,6 +572,7 @@ class _ReportSheetState extends State<_ReportSheet> {
             screenshotCaptureError: widget.screenshotBase64 == null
                 ? widget.screenshotFailureReason
                 : null,
+            appBrightness: widget.appBrightness.name,
           ),
           device: metadata,
           profileKey: profileKey,
@@ -596,16 +616,17 @@ class _ReportSheetState extends State<_ReportSheet> {
 
   Widget _buildIntroStep(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final colors = _ReportSheetColors.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(18, 0, 18, 18 + bottomInset),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.surface,
           borderRadius: _sheetRadius,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.74)),
-          boxShadow: const [
+          border: Border.all(color: colors.border),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x26000000),
+              color: colors.shadow,
               blurRadius: 36,
               offset: Offset(0, 16),
             ),
@@ -621,14 +642,14 @@ class _ReportSheetState extends State<_ReportSheet> {
                 'Report a bug?',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: Colors.black,
+                      color: colors.onSurface,
                     ),
               ),
               const SizedBox(height: 18),
               Text(
                 "If something isn't working correctly, you can report it to help improve this app.",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF606060),
+                      color: colors.onSurfaceMuted,
                       height: 1.25,
                     ),
               ),
@@ -637,8 +658,8 @@ class _ReportSheetState extends State<_ReportSheet> {
                 height: 56,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.primaryButton,
+                    foregroundColor: colors.onPrimaryButton,
                     shape: const StadiumBorder(),
                   ),
                   onPressed: () => setState(() {
@@ -652,18 +673,18 @@ class _ReportSheetState extends State<_ReportSheet> {
               ),
               if (widget.onShakeReportingChanged != null) ...[
                 const SizedBox(height: 28),
-                const Divider(height: 1, color: Color(0xFFE8E8E8)),
+                Divider(height: 1, color: colors.divider),
                 const SizedBox(height: 18),
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Shake device to report a bug',
                             style: TextStyle(
-                              color: Colors.black,
+                              color: colors.onSurface,
                               fontSize: 18,
                               fontWeight: FontWeight.w500,
                             ),
@@ -671,7 +692,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                           SizedBox(height: 4),
                           Text(
                             'Toggle off to disable',
-                            style: TextStyle(color: Color(0xFF606060)),
+                            style: TextStyle(color: colors.onSurfaceMuted),
                           ),
                         ],
                       ),
@@ -692,6 +713,7 @@ class _ReportSheetState extends State<_ReportSheet> {
 
   Widget _buildFormStep(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final colors = _ReportSheetColors.of(context);
     final submitting = _status == HandrailBugReportSubmissionStatus.submitting;
     final canSubmit =
         _descriptionController.text.trim().isNotEmpty && !submitting;
@@ -700,9 +722,9 @@ class _ReportSheetState extends State<_ReportSheet> {
       curve: Curves.easeOut,
       padding: EdgeInsets.only(bottom: bottomInset),
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
         ),
         child: Form(
           key: _formKey,
@@ -721,6 +743,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                         'Report app issue',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w700,
+                              color: colors.onSurface,
                             ),
                       ),
                       Align(
@@ -728,8 +751,8 @@ class _ReportSheetState extends State<_ReportSheet> {
                         child: IconButton.filled(
                           tooltip: 'Close',
                           style: IconButton.styleFrom(
-                            backgroundColor: const Color(0xFFF7F7F7),
-                            foregroundColor: Colors.black,
+                            backgroundColor: colors.controlSurface,
+                            foregroundColor: colors.onSurface,
                           ),
                           onPressed: submitting
                               ? null
@@ -744,6 +767,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                     'What happened?',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: colors.onSurface,
                         ),
                   ),
                   const SizedBox(height: 16),
@@ -759,7 +783,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                       counterText:
                           '${_descriptionController.text.length} / $_descriptionMaxLength',
                       filled: true,
-                      fillColor: const Color(0xFFF4F4F4),
+                      fillColor: colors.inputFill,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(28),
                         borderSide: BorderSide.none,
@@ -776,22 +800,23 @@ class _ReportSheetState extends State<_ReportSheet> {
                   Text(
                     'Any information you share may be reviewed to help improve this app.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.black54,
+                          color: colors.onSurfaceMuted,
                           height: 1.25,
                         ),
                   ),
                   if (widget.screenshotBase64 != null) ...[
                     const SizedBox(height: 24),
-                    const Divider(height: 1),
+                    Divider(height: 1, color: colors.divider),
                     const SizedBox(height: 22),
                     Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             'Include screenshot in report',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w500,
+                              color: colors.onSurface,
                             ),
                           ),
                         ),
@@ -816,7 +841,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                     ),
                   ] else if (widget.screenshotFailureReason != null) ...[
                     const SizedBox(height: 24),
-                    const Divider(height: 1),
+                    Divider(height: 1, color: colors.divider),
                     const SizedBox(height: 22),
                     _ScreenshotUnavailable(
                       reason: widget.screenshotFailureReason!,
@@ -862,6 +887,61 @@ class _ReportSheetState extends State<_ReportSheet> {
   }
 }
 
+class _ReportSheetColors {
+  const _ReportSheetColors({
+    required this.surface,
+    required this.controlSurface,
+    required this.inputFill,
+    required this.onSurface,
+    required this.onSurfaceMuted,
+    required this.border,
+    required this.divider,
+    required this.shadow,
+    required this.primaryButton,
+    required this.onPrimaryButton,
+  });
+
+  factory _ReportSheetColors.of(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+    return _ReportSheetColors(
+      surface: colorScheme.surface,
+      controlSurface: isDark
+          ? Color.alphaBlend(
+              colorScheme.onSurface.withValues(alpha: 0.10),
+              colorScheme.surface,
+            )
+          : const Color(0xFFF7F7F7),
+      inputFill: isDark
+          ? Color.alphaBlend(
+              colorScheme.onSurface.withValues(alpha: 0.08),
+              colorScheme.surface,
+            )
+          : const Color(0xFFF4F4F4),
+      onSurface: colorScheme.onSurface,
+      onSurfaceMuted: colorScheme.onSurface.withValues(alpha: 0.68),
+      border:
+          colorScheme.outlineVariant.withValues(alpha: isDark ? 0.50 : 0.74),
+      divider:
+          colorScheme.outlineVariant.withValues(alpha: isDark ? 0.55 : 0.80),
+      shadow: Colors.black.withValues(alpha: isDark ? 0.44 : 0.15),
+      primaryButton: isDark ? colorScheme.primary : colorScheme.onSurface,
+      onPrimaryButton: isDark ? colorScheme.onPrimary : colorScheme.surface,
+    );
+  }
+
+  final Color surface;
+  final Color controlSurface;
+  final Color inputFill;
+  final Color onSurface;
+  final Color onSurfaceMuted;
+  final Color border;
+  final Color divider;
+  final Color shadow;
+  final Color primaryButton;
+  final Color onPrimaryButton;
+}
+
 class _ScreenshotUnavailable extends StatelessWidget {
   const _ScreenshotUnavailable({required this.reason});
 
@@ -869,10 +949,25 @@ class _ScreenshotUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+    final background = isDark
+        ? Color.alphaBlend(
+            colorScheme.error.withValues(alpha: 0.16),
+            colorScheme.surface,
+          )
+        : const Color(0xFFFFF7E6);
+    final border = isDark
+        ? colorScheme.error.withValues(alpha: 0.42)
+        : const Color(0xFFFFD48A);
+    final foreground = isDark ? colorScheme.onSurface : const Color(0xFF6D4700);
+    final muted = isDark
+        ? colorScheme.onSurface.withValues(alpha: 0.72)
+        : const Color(0xFF7A5B20);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E6),
-        border: Border.all(color: const Color(0xFFFFD48A)),
+        color: background,
+        border: Border.all(color: border),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Padding(
@@ -883,7 +978,7 @@ class _ScreenshotUnavailable extends StatelessWidget {
             Text(
               'Screenshot unavailable',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: const Color(0xFF6D4700),
+                    color: foreground,
                     fontWeight: FontWeight.w700,
                   ),
             ),
@@ -891,7 +986,7 @@ class _ScreenshotUnavailable extends StatelessWidget {
             Text(
               reason,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF6D4700),
+                    color: foreground,
                     height: 1.25,
                   ),
             ),
@@ -899,7 +994,7 @@ class _ScreenshotUnavailable extends StatelessWidget {
             Text(
               'The report can still be sent without a screenshot.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF7A5B20),
+                    color: muted,
                     height: 1.25,
                   ),
             ),

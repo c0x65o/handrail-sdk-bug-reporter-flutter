@@ -26,6 +26,7 @@ class HandrailBugReportDraft {
     this.screenshotFilename,
     this.screenshotMimeType,
     this.screenshotCaptureError,
+    this.appBrightness,
   });
 
   final String title;
@@ -34,6 +35,7 @@ class HandrailBugReportDraft {
   final String? screenshotFilename;
   final String? screenshotMimeType;
   final String? screenshotCaptureError;
+  final String? appBrightness;
 }
 
 @immutable
@@ -49,6 +51,7 @@ class HandrailBugReportPayload {
     required this.deviceModel,
     required this.osVersion,
     required this.route,
+    required this.appBrightness,
     required this.title,
     required this.description,
     required this.profileKey,
@@ -75,6 +78,7 @@ class HandrailBugReportPayload {
       deviceModel: device.deviceModel,
       osVersion: device.osVersion,
       route: config.routeProvider?.call(),
+      appBrightness: draft.appBrightness,
       title: draft.title,
       description: draft.description,
       profileKey: profileKey,
@@ -95,6 +99,7 @@ class HandrailBugReportPayload {
   final String? deviceModel;
   final String? osVersion;
   final String? route;
+  final String? appBrightness;
   final String title;
   final String description;
   final String? profileKey;
@@ -115,6 +120,7 @@ class HandrailBugReportPayload {
       'device_model': deviceModel,
       'os_version': osVersion,
       'route': route,
+      'app_brightness': appBrightness,
       'title': title,
       'description': description,
       'profile_key': profileKey,

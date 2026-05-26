@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:handrail_bug_reporter/handrail_bug_reporter.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 const _config = HandrailBugReporterConfig(
   projectSlug: 'handrail',
@@ -93,8 +97,11 @@ void main() {
     );
 
     await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
+    expect(result?.message, isNull);
     expect(find.text('Report a bug?'), findsOneWidget);
 
     Navigator.of(tester.element(find.text('Report a bug?'))).pop();
@@ -102,4 +109,79 @@ void main() {
 
     expect(result?.opened, isTrue);
   });
+
+  testWidgets('submitted reports include the host app brightness',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Map<String, Object?>? submittedPayload;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        themeMode: ThemeMode.dark,
+        darkTheme: ThemeData.dark(),
+        home: HandrailBugReporter(
+          config: _config,
+          metadataProvider: _FakeMetadataProvider(),
+          clientFactory: (config) {
+            return HandrailBugReportClient(
+              apiBaseUrl: config.apiBaseUrl,
+              reportToken: config.reportToken,
+              httpClient: MockClient((request) async {
+                submittedPayload =
+                    jsonDecode(request.body) as Map<String, Object?>;
+                return http.Response('{"ok":true}', 201);
+              }),
+            );
+          },
+          child: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () => HandrailBugReporter.open(context),
+                    child: const Text('Open reporter'),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextFormField),
+      'The dark mode report sheet looks wrong.',
+    );
+    await tester.pump();
+    final sendButton = find.widgetWithText(FilledButton, 'Send');
+    await tester.ensureVisible(sendButton);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(sendButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(submittedPayload?['app_brightness'], 'dark');
+  });
+}
+
+class _FakeMetadataProvider extends HandrailDeviceMetadataProvider {
+  @override
+  Future<HandrailDeviceMetadata> read() async {
+    return const HandrailDeviceMetadata(
+      platform: 'android',
+      deviceModel: 'test-device',
+      osVersion: 'test-os',
+    );
+  }
 }

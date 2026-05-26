@@ -25,6 +25,7 @@ void main() {
         screenshotFilename: 'mobile-screenshot.png',
         screenshotMimeType: 'image/png',
         screenshotCaptureError: null,
+        appBrightness: 'dark',
       ),
       device: const HandrailDeviceMetadata(
         platform: 'ios',
@@ -45,6 +46,7 @@ void main() {
       'device_model': 'iPhone 15',
       'os_version': 'iOS 18.1',
       'route': '/checkout',
+      'app_brightness': 'dark',
       'title': 'Checkout freezes',
       'description': 'The checkout screen locks after tapping submit.',
       'profile_key': 'profile-key',

@@ -17,6 +17,7 @@ void main() {
     deviceModel: 'Pixel',
     osVersion: 'Android 15',
     route: '/workspace',
+    appBrightness: 'light',
     title: 'Broken screen',
     description: 'Screen fails to load.',
     profileKey: 'profile',
