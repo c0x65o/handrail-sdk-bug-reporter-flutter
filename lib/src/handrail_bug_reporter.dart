@@ -30,8 +30,34 @@ class HandrailBugReporter extends StatefulWidget {
   final HandrailDeviceMetadataProvider? metadataProvider;
 
   static Future<bool> open(BuildContext context) async {
+    final result = await openWithResult(context);
+    return result.opened;
+  }
+
+  static Future<HandrailBugReporterOpenResult> openWithResult(
+    BuildContext context,
+  ) async {
     final state = context.findAncestorStateOfType<_HandrailBugReporterState>();
-    return state?.openReportSheet() ?? Future<bool>.value(false);
+    if (state == null) {
+      return const HandrailBugReporterOpenResult.blocked(
+        'Bug reporter is not mounted in this part of the app.',
+      );
+    }
+    return state.openReportSheet(sheetContext: context);
+  }
+
+  static Future<HandrailBugReporterAvailability> availability(
+    BuildContext context,
+  ) async {
+    final state = context.findAncestorStateOfType<_HandrailBugReporterState>();
+    if (state == null) {
+      return const HandrailBugReporterAvailability(
+        canOpen: false,
+        canInstallShakeTrigger: false,
+        blocker: 'Bug reporter is not mounted in this part of the app.',
+      );
+    }
+    return state.availability(sheetContext: context);
   }
 
   static bool visibleEntryEnabled(BuildContext context) {
@@ -42,6 +68,38 @@ class HandrailBugReporter extends StatefulWidget {
 
   @override
   State<HandrailBugReporter> createState() => _HandrailBugReporterState();
+}
+
+@immutable
+class HandrailBugReporterOpenResult {
+  const HandrailBugReporterOpenResult._({
+    required this.opened,
+    required this.message,
+  });
+
+  const HandrailBugReporterOpenResult.opened()
+      : this._(opened: true, message: null);
+
+  const HandrailBugReporterOpenResult.blocked(String message)
+      : this._(opened: false, message: message);
+
+  final bool opened;
+  final String? message;
+}
+
+@immutable
+class HandrailBugReporterAvailability {
+  const HandrailBugReporterAvailability({
+    required this.canOpen,
+    required this.canInstallShakeTrigger,
+    this.blocker,
+    this.shakeBlocker,
+  });
+
+  final bool canOpen;
+  final bool canInstallShakeTrigger;
+  final String? blocker;
+  final String? shakeBlocker;
 }
 
 class _HandrailBugReporterState extends State<HandrailBugReporter> {
@@ -56,6 +114,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
   StreamSubscription<dynamic>? _shakeSubscription;
   Timer? _threeFingerTimer;
   DateTime? _lastShakeAt;
+  String? _shakeFailureReason;
   bool _opening = false;
   late bool _shakeReportingEnabled;
 
@@ -94,14 +153,20 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
     }
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
       _shakeSubscription = _iosShakeChannel.receiveBroadcastStream().listen(
-            (_) => _handleShakeDetected(),
-            onError: (_) {},
-          );
+        (_) => _handleShakeDetected(),
+        onError: (Object error) {
+          _shakeFailureReason =
+              'iOS shake listener failed: ${error.runtimeType}.';
+        },
+      );
       return;
     }
     _shakeSubscription = accelerometerEventStream().listen(
       _handleAccelerometer,
-      onError: (_) {},
+      onError: (Object error) {
+        _shakeFailureReason =
+            'Motion sensor listener failed: ${error.runtimeType}.';
+      },
     );
   }
 
@@ -161,18 +226,65 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
     }
   }
 
-  Future<bool> openReportSheet() async {
-    if (_opening || !mounted || !await widget.config.canOpenReporter()) {
-      return false;
+  Future<HandrailBugReporterAvailability> availability({
+    BuildContext? sheetContext,
+  }) async {
+    final configBlocker = await widget.config.openBlocker();
+    final targetContext = sheetContext ?? context;
+    final navigatorMissing = !targetContext.mounted ||
+        Navigator.maybeOf(targetContext, rootNavigator: true) == null;
+    final blocker = configBlocker ??
+        (navigatorMissing
+            ? 'Bug reporter cannot open because no app navigator is available.'
+            : null);
+    final canInstallShakeTrigger =
+        widget.config.canInstallGestureHandlers && _shakeFailureReason == null;
+    final shakeBlocker = widget.config.triggers.shake
+        ? _shakeFailureReason ??
+            (widget.config.canInstallGestureHandlers
+                ? null
+                : blocker ?? 'Shake reporting is not enabled for this build.')
+        : 'Shake reporting is disabled for this build.';
+
+    return HandrailBugReporterAvailability(
+      canOpen: blocker == null,
+      canInstallShakeTrigger: canInstallShakeTrigger,
+      blocker: blocker,
+      shakeBlocker: shakeBlocker,
+    );
+  }
+
+  Future<HandrailBugReporterOpenResult> openReportSheet({
+    BuildContext? sheetContext,
+  }) async {
+    final targetContext = sheetContext ?? context;
+    if (_opening) {
+      return const HandrailBugReporterOpenResult.blocked(
+        'Bug reporter is already opening.',
+      );
+    }
+    if (!mounted || !targetContext.mounted) {
+      return const HandrailBugReporterOpenResult.blocked(
+        'Bug reporter is not mounted in the current app view.',
+      );
+    }
+    final currentAvailability = await availability(sheetContext: targetContext);
+    if (!currentAvailability.canOpen) {
+      return HandrailBugReporterOpenResult.blocked(
+        currentAvailability.blocker ?? 'Bug reporter is not available.',
+      );
     }
     _opening = true;
     try {
       final screenshot = await _captureScreenshot();
-      if (!mounted) {
-        return false;
+      if (!mounted || !targetContext.mounted) {
+        return const HandrailBugReporterOpenResult.blocked(
+          'Bug reporter closed before the report sheet could open.',
+        );
       }
       await showModalBottomSheet<void>(
-        context: context,
+        context: targetContext,
+        useRootNavigator: true,
         isScrollControlled: true,
         useSafeArea: true,
         backgroundColor: Colors.transparent,
@@ -196,7 +308,11 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
           );
         },
       );
-      return true;
+      return const HandrailBugReporterOpenResult.opened();
+    } catch (error) {
+      return HandrailBugReporterOpenResult.blocked(
+        'Bug reporter failed to open: ${error.runtimeType}.',
+      );
     } finally {
       _opening = false;
     }

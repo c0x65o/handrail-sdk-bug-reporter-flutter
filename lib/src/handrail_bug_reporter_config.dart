@@ -89,16 +89,35 @@ class HandrailBugReporterConfig {
     return hasSubmissionConfig && triggers.hasGestureTrigger;
   }
 
-  Future<bool> canOpenReporter() async {
-    if (!hasSubmissionConfig) {
-      return false;
+  Future<String?> openBlocker() async {
+    if (!enabled) {
+      return 'Bug reporting is disabled for this build.';
+    }
+    if (apiBaseUrl.trim().isEmpty) {
+      return 'Bug reporting is missing the API URL.';
+    }
+    if (projectSlug.trim().isEmpty) {
+      return 'Bug reporting is missing the project slug.';
+    }
+    if (environment.trim().isEmpty) {
+      return 'Bug reporting is missing the environment.';
+    }
+    if (reportToken.trim().isEmpty) {
+      return 'Bug reporting is missing the public report token.';
     }
     if (!isProduction) {
-      return true;
+      return null;
     }
-    if (allowProductionReporting) return true;
+    if (allowProductionReporting) return null;
     final key = await profileKeyProvider?.call();
-    return key != null && key.trim().isNotEmpty;
+    if (key != null && key.trim().isNotEmpty) {
+      return null;
+    }
+    return 'Production reporting is blocked because no trusted tester profile key is configured.';
+  }
+
+  Future<bool> canOpenReporter() async {
+    return await openBlocker() == null;
   }
 
   Future<String?> resolveProfileKey() async {

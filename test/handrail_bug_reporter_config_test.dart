@@ -43,6 +43,10 @@ void main() {
     );
 
     expect(await config.canOpenReporter(), isFalse);
+    expect(
+      await config.openBlocker(),
+      'Production reporting is blocked because no trusted tester profile key is configured.',
+    );
   });
 
   test('environment gating allows production when policy flag is enabled',
@@ -60,8 +64,7 @@ void main() {
     expect(await config.canOpenReporter(), isTrue);
   });
 
-  test('profile key callback trims production reporter profile keys',
-      () async {
+  test('profile key callback trims production reporter profile keys', () async {
     var callbackCalls = 0;
     final config = HandrailBugReporterConfig(
       apiBaseUrl: 'https://example.test/api',
