@@ -31,7 +31,20 @@ void main() {
     expect(await config.canOpenReporter(), isTrue);
   });
 
-  test('environment gating disables production without policy or profile key',
+  test('environment gating allows production by default', () async {
+    const config = HandrailBugReporterConfig(
+      apiBaseUrl: 'https://example.test/api',
+      projectSlug: 'handrail',
+      environment: 'production',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+    );
+
+    expect(await config.canOpenReporter(), isTrue);
+  });
+
+  test('environment gating can still require a production policy or profile key',
       () async {
     const config = HandrailBugReporterConfig(
       apiBaseUrl: 'https://example.test/api',
@@ -40,6 +53,7 @@ void main() {
       appVersion: '1.2.3',
       buildNumber: '42',
       reportToken: 'report-token',
+      allowProductionReporting: false,
     );
 
     expect(await config.canOpenReporter(), isFalse);
@@ -47,21 +61,6 @@ void main() {
       await config.openBlocker(),
       'Production reporting is blocked because no trusted tester profile key is configured.',
     );
-  });
-
-  test('environment gating allows production when policy flag is enabled',
-      () async {
-    const config = HandrailBugReporterConfig(
-      apiBaseUrl: 'https://example.test/api',
-      projectSlug: 'handrail',
-      environment: 'production',
-      appVersion: '1.2.3',
-      buildNumber: '42',
-      reportToken: 'report-token',
-      allowProductionReporting: true,
-    );
-
-    expect(await config.canOpenReporter(), isTrue);
   });
 
   test('profile key callback trims production reporter profile keys', () async {

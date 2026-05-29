@@ -40,7 +40,7 @@ class HandrailBugReporterConfig {
     this.appFlavor,
     this.commitSha,
     this.enabled = true,
-    this.allowProductionReporting = false,
+    this.allowProductionReporting = true,
     this.triggers = const HandrailBugReporterTriggers(),
     this.profileKeyProvider,
     this.routeProvider,
