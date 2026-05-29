@@ -44,7 +44,8 @@ void main() {
     expect(await config.canOpenReporter(), isTrue);
   });
 
-  test('environment gating can still require a production policy or profile key',
+  test(
+      'environment gating can still require a production policy or profile key',
       () async {
     const config = HandrailBugReporterConfig(
       apiBaseUrl: 'https://example.test/api',

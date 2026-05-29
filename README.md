@@ -19,3 +19,8 @@ import 'package:handrail_bug_reporter/handrail_bug_reporter.dart';
 ```
 
 For local workspace development, apps can point to this repo with a path dependency and run `flutter pub get`.
+
+The SDK treats reporting and production submission as enabled by default once
+the public Handrail config and report token are present. Pass
+`enabled: false` or `allowProductionReporting: false` only for projects that
+intentionally opt out or require profile-gated production reports.
