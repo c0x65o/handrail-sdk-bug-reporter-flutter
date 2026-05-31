@@ -102,18 +102,23 @@ class HandrailBugReporterAvailability {
   final String? shakeBlocker;
 }
 
-class _HandrailBugReporterState extends State<HandrailBugReporter> {
+class _HandrailBugReporterState extends State<HandrailBugReporter>
+    with WidgetsBindingObserver {
   static const EventChannel _iosShakeChannel =
       EventChannel('dev.handrail/bug_reporter/ios_shake');
   static const MethodChannel _screenshotChannel =
       MethodChannel('dev.handrail/bug_reporter/screenshot');
   static const double _maxScreenshotDimension = 1280;
+  static const Duration _shakeCooldown = Duration(seconds: 2);
+  static const Duration _lifecycleShakeGracePeriod =
+      Duration(milliseconds: 900);
 
   final GlobalKey _boundaryKey = GlobalKey();
   final Set<int> _activePointers = <int>{};
   StreamSubscription<dynamic>? _shakeSubscription;
   Timer? _threeFingerTimer;
   DateTime? _lastShakeAt;
+  DateTime? _ignoreShakeUntil;
   String? _shakeFailureReason;
   bool _opening = false;
   late bool _shakeReportingEnabled;
@@ -121,7 +126,9 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _shakeReportingEnabled = widget.config.triggers.shake;
+    _ignoreShakeUntil = DateTime.now().add(_lifecycleShakeGracePeriod);
     _syncShakeListener();
   }
 
@@ -138,9 +145,17 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _shakeSubscription?.cancel();
     _threeFingerTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _ignoreShakeUntil = DateTime.now().add(_lifecycleShakeGracePeriod);
+    }
   }
 
   void _syncShakeListener() {
@@ -151,6 +166,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
         !_shakeReportingEnabled) {
       return;
     }
+    _ignoreShakeUntil = DateTime.now().add(_lifecycleShakeGracePeriod);
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
       _shakeSubscription = _iosShakeChannel.receiveBroadcastStream().listen(
         (_) => _handleShakeDetected(),
@@ -192,9 +208,12 @@ class _HandrailBugReporterState extends State<HandrailBugReporter> {
 
   void _handleShakeDetected() {
     final now = DateTime.now();
+    final ignoreShakeUntil = _ignoreShakeUntil;
+    if (ignoreShakeUntil != null && now.isBefore(ignoreShakeUntil)) {
+      return;
+    }
     final lastShakeAt = _lastShakeAt;
-    if (lastShakeAt != null &&
-        now.difference(lastShakeAt) < const Duration(seconds: 2)) {
+    if (lastShakeAt != null && now.difference(lastShakeAt) < _shakeCooldown) {
       return;
     }
     _lastShakeAt = now;
