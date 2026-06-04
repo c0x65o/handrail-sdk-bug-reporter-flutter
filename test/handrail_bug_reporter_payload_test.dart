@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:handrail_bug_reporter/handrail_bug_reporter.dart';
 
@@ -56,7 +58,49 @@ void main() {
       'screenshot_filename': 'mobile-screenshot.png',
       'screenshot_mime_type': 'image/png',
       'screenshot_capture_error': null,
+      'reporter_sdk_version': HandrailBugReporterSdkMetadata.version,
+      'reporter_sdk_commit': HandrailBugReporterSdkMetadata.commit,
+      'reporter_sdk_ref': HandrailBugReporterSdkMetadata.ref,
     });
+  });
+
+  test('reporter SDK metadata is included and version matches pubspec', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final versionMatch =
+        RegExp(r'^version:\s*(\S+)\s*$', multiLine: true).firstMatch(pubspec);
+
+    expect(versionMatch, isNotNull);
+    expect(HandrailBugReporterSdkMetadata.packageName, 'handrail_bug_reporter');
+    expect(HandrailBugReporterSdkMetadata.version, versionMatch!.group(1));
+    expect(HandrailBugReporterSdkMetadata.ref, 'release/0.1');
+
+    const payload = HandrailBugReportPayload(
+      projectSlug: 'handrail',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.3.105',
+      buildNumber: '217',
+      commitSha: 'abc1234',
+      platform: 'ios',
+      deviceModel: null,
+      osVersion: null,
+      route: null,
+      appBrightness: null,
+      title: 'Checkout freezes',
+      description: 'The checkout screen locks after tapping submit.',
+      severity: 'sev3',
+      profileKey: null,
+      screenshotBase64: null,
+      reporterSdkCommit: 'sdk-commit',
+      reporterSdkRef: 'v0.1.19',
+    );
+
+    expect(payload.toJson(), containsPair('reporter_sdk_version', '0.1.19'));
+    expect(payload.toJson(), containsPair('reporter_sdk_commit', 'sdk-commit'));
+    expect(payload.toJson(), containsPair('reporter_sdk_ref', 'v0.1.19'));
+    expect(payload.toJson(), containsPair('app_version', '1.3.105'));
+    expect(payload.toJson(), containsPair('build_number', '217'));
+    expect(payload.toJson(), containsPair('severity', 'sev3'));
   });
 
   test('payload construction prefers resolved bundle version metadata', () {

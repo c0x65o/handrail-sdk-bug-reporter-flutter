@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'handrail_bug_reporter_config.dart';
+import 'handrail_bug_reporter_sdk_metadata.dart';
 
 @immutable
 class HandrailDeviceMetadata {
@@ -62,6 +63,9 @@ class HandrailBugReportPayload {
     this.screenshotFilename,
     this.screenshotMimeType,
     this.screenshotCaptureError,
+    this.reporterSdkVersion = HandrailBugReporterSdkMetadata.version,
+    this.reporterSdkCommit = HandrailBugReporterSdkMetadata.commit,
+    this.reporterSdkRef = HandrailBugReporterSdkMetadata.ref,
   });
 
   factory HandrailBugReportPayload.fromConfig({
@@ -114,6 +118,9 @@ class HandrailBugReportPayload {
   final String? screenshotFilename;
   final String? screenshotMimeType;
   final String? screenshotCaptureError;
+  final String reporterSdkVersion;
+  final String? reporterSdkCommit;
+  final String reporterSdkRef;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -136,6 +143,9 @@ class HandrailBugReportPayload {
       'screenshot_filename': screenshotFilename,
       'screenshot_mime_type': screenshotMimeType,
       'screenshot_capture_error': screenshotCaptureError,
+      'reporter_sdk_version': reporterSdkVersion,
+      'reporter_sdk_commit': reporterSdkCommit,
+      'reporter_sdk_ref': reporterSdkRef,
     };
   }
 
