@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
+import 'handrail_app_build_metadata.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_payload.dart';
 import 'handrail_bug_reporter_submission.dart';
@@ -580,6 +581,8 @@ class _ReportSheetState extends State<_ReportSheet> {
     try {
       final profileKey = await widget.config.resolveProfileKey();
       final metadata = await widget.metadataProvider.read();
+      final buildMetadata =
+          await HandrailAppBuildMetadata.fromConfig(widget.config);
       final result = await client.submit(
         HandrailBugReportPayload.fromConfig(
           config: widget.config,
@@ -600,6 +603,8 @@ class _ReportSheetState extends State<_ReportSheet> {
           ),
           device: metadata,
           profileKey: profileKey,
+          appVersion: buildMetadata.appVersion,
+          buildNumber: buildMetadata.buildNumber,
         ),
       );
       if (!mounted) {

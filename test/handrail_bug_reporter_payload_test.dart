@@ -58,6 +58,64 @@ void main() {
       'screenshot_capture_error': null,
     });
   });
+
+  test('payload construction prefers resolved bundle version metadata', () {
+    const config = HandrailBugReporterConfig(
+      apiBaseUrl: 'https://example.test/api',
+      projectSlug: 'handrail',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.0.87',
+      buildNumber: '1',
+      commitSha: 'abc1234',
+      reportToken: 'report-token',
+      routeProvider: _route,
+    );
+
+    final payload = HandrailBugReportPayload.fromConfig(
+      config: config,
+      draft: const HandrailBugReportDraft(
+        title: 'Checkout freezes',
+        description: 'The checkout screen locks after tapping submit.',
+      ),
+      device: const HandrailDeviceMetadata(platform: 'ios'),
+      profileKey: null,
+      appVersion: '1.0.207',
+      buildNumber: '207',
+    );
+
+    expect(payload.appVersion, '1.0.207');
+    expect(payload.buildNumber, '207');
+  });
+
+  test('payload construction falls back to configured version metadata', () {
+    const config = HandrailBugReporterConfig(
+      apiBaseUrl: 'https://example.test/api',
+      projectSlug: 'handrail',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.0.87',
+      buildNumber: '1',
+      commitSha: 'abc1234',
+      reportToken: 'report-token',
+      routeProvider: _route,
+    );
+
+    final payload = HandrailBugReportPayload.fromConfig(
+      config: config,
+      draft: const HandrailBugReportDraft(
+        title: 'Checkout freezes',
+        description: 'The checkout screen locks after tapping submit.',
+      ),
+      device: const HandrailDeviceMetadata(platform: 'ios'),
+      profileKey: null,
+      appVersion: '   ',
+      buildNumber: '',
+    );
+
+    expect(payload.appVersion, '1.0.87');
+    expect(payload.buildNumber, '1');
+  });
 }
 
 String? _route() => '/checkout';

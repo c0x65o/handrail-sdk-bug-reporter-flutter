@@ -69,13 +69,15 @@ class HandrailBugReportPayload {
     required HandrailBugReportDraft draft,
     required HandrailDeviceMetadata device,
     required String? profileKey,
+    String? appVersion,
+    String? buildNumber,
   }) {
     return HandrailBugReportPayload(
       projectSlug: config.projectSlug,
       environment: config.environment,
       appFlavor: config.appFlavor ?? config.environment,
-      appVersion: config.appVersion,
-      buildNumber: config.buildNumber,
+      appVersion: _firstNonBlank(appVersion, config.appVersion),
+      buildNumber: _firstNonBlank(buildNumber, config.buildNumber),
       commitSha: config.commitSha,
       platform: device.platform,
       deviceModel: device.deviceModel,
@@ -138,4 +140,9 @@ class HandrailBugReportPayload {
   }
 
   String encode() => jsonEncode(toJson());
+}
+
+String _firstNonBlank(String? preferred, String fallback) {
+  final normalized = preferred?.trim();
+  return normalized != null && normalized.isNotEmpty ? normalized : fallback;
 }

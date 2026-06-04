@@ -207,8 +207,9 @@ void main() {
     await tester.ensureVisible(sendButton);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(sendButton);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    for (var i = 0; i < 10 && submittedPayload == null; i += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
 
     expect(submittedPayload?['app_brightness'], 'dark');
     expect(submittedPayload?['severity'], 'sev2');
