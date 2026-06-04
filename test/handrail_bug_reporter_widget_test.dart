@@ -147,7 +147,7 @@ void main() {
     );
   });
 
-  testWidgets('submitted reports include the host app brightness',
+  testWidgets('submitted reports include brightness and selected severity',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1;
@@ -196,6 +196,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Report bug'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('High'));
+    await tester.pump();
     await tester.enterText(
       find.byType(TextFormField),
       'The dark mode report sheet looks wrong.',
@@ -209,6 +211,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(submittedPayload?['app_brightness'], 'dark');
+    expect(submittedPayload?['severity'], 'sev2');
   });
 }
 

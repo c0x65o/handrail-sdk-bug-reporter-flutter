@@ -521,6 +521,7 @@ class _ReportSheet extends StatefulWidget {
 class _ReportSheetState extends State<_ReportSheet> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
+  String _severity = _bugReportSeverityMedium;
   late bool _includeScreenshot;
   late bool _shakeReportingEnabled;
   bool _showReportForm = false;
@@ -529,6 +530,9 @@ class _ReportSheetState extends State<_ReportSheet> {
   String? _errorMessage;
 
   static const int _descriptionMaxLength = 2000;
+  static const String _bugReportSeverityHigh = 'sev2';
+  static const String _bugReportSeverityMedium = 'sev3';
+  static const String _bugReportSeverityLow = 'sev4';
   static const BorderRadius _sheetRadius =
       BorderRadius.all(Radius.circular(36));
 
@@ -582,6 +586,7 @@ class _ReportSheetState extends State<_ReportSheet> {
           draft: HandrailBugReportDraft(
             title: _buildTitle(_descriptionController.text),
             description: _descriptionController.text.trim(),
+            severity: _severity,
             screenshotBase64:
                 _includeScreenshot ? widget.screenshotBase64 : null,
             screenshotFilename:
@@ -782,6 +787,40 @@ class _ReportSheetState extends State<_ReportSheet> {
                     ],
                   ),
                   const SizedBox(height: 40),
+                  Text(
+                    'Severity',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: colors.onSurface,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<String>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment<String>(
+                        value: _bugReportSeverityHigh,
+                        label: Text('High'),
+                      ),
+                      ButtonSegment<String>(
+                        value: _bugReportSeverityMedium,
+                        label: Text('Medium'),
+                      ),
+                      ButtonSegment<String>(
+                        value: _bugReportSeverityLow,
+                        label: Text('Low'),
+                      ),
+                    ],
+                    selected: <String>{_severity},
+                    onSelectionChanged: submitting
+                        ? null
+                        : (values) {
+                            setState(() {
+                              _severity = values.first;
+                            });
+                          },
+                  ),
+                  const SizedBox(height: 28),
                   Text(
                     'What happened?',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(

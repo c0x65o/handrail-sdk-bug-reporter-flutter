@@ -21,6 +21,7 @@ void main() {
       draft: const HandrailBugReportDraft(
         title: 'Checkout freezes',
         description: 'The checkout screen locks after tapping submit.',
+        severity: 'sev3',
         screenshotBase64: 'png-base64',
         screenshotFilename: 'mobile-screenshot.png',
         screenshotMimeType: 'image/png',
@@ -49,6 +50,7 @@ void main() {
       'app_brightness': 'dark',
       'title': 'Checkout freezes',
       'description': 'The checkout screen locks after tapping submit.',
+      'severity': 'sev3',
       'profile_key': 'profile-key',
       'screenshot_base64': 'png-base64',
       'screenshot_filename': 'mobile-screenshot.png',
