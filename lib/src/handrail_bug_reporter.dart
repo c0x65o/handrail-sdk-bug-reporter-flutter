@@ -796,6 +796,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                     minLines: 7,
                     maxLines: 7,
                     maxLength: _descriptionMaxLength,
+                    textCapitalization: TextCapitalization.sentences,
                     textInputAction: TextInputAction.newline,
                     decoration: InputDecoration(
                       hintText: 'Tell us about the issue you encountered',

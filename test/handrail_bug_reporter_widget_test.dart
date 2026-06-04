@@ -110,6 +110,43 @@ void main() {
     expect(result?.opened, isTrue);
   });
 
+  testWidgets('description field capitalizes sentences', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: _config,
+          child: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () => HandrailBugReporter.open(context),
+                    child: const Text('Open reporter'),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+
+    final descriptionField = tester.widget<EditableText>(
+      find.byType(EditableText),
+    );
+    expect(
+      descriptionField.textCapitalization,
+      TextCapitalization.sentences,
+    );
+  });
+
   testWidgets('submitted reports include the host app brightness',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1200);
