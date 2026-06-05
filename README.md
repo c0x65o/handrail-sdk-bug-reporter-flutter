@@ -20,7 +20,15 @@ import 'package:handrail_bug_reporter/handrail_bug_reporter.dart';
 
 For local workspace development, apps can point to this repo with a path dependency and run `flutter pub get`.
 
-Use `release/0.1` as the moving minor release channel for apps that should receive approved `0.1.x` SDK patches. Use immutable patch tags such as `v0.1.19` only when a build must stay fixed to one SDK patch release. Do not use `main` as the app dependency ref.
+Use `release/0.1` as the moving minor release channel for apps that should receive approved `0.1.x` SDK patches. Use immutable patch tags such as `v0.1.23` only when a build must stay fixed to one SDK patch release. Do not use `main` as the app dependency ref.
+
+## Release note
+
+The intended patch release for the Flutter web screenshot fallback fix is `v0.1.23` on `release/0.1`. Apps should keep the dependency ref on `release/0.1`; the app lockfile records the exact commit that was pulled. To intentionally pull future approved `0.1.x` updates, run:
+
+```sh
+flutter pub upgrade handrail_bug_reporter
+```
 
 Submitted payloads include SDK diagnostics under explicit fields:
 
