@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'handrail_bug_reporter'
-  s.version          = '0.1.19'
+  s.version          = '0.1.23'
   s.summary          = 'Reusable Flutter integration surface for Handrail mobile bug reports.'
   s.description      = <<-DESC
 Reusable Flutter integration surface for submitting Handrail mobile bug reports.

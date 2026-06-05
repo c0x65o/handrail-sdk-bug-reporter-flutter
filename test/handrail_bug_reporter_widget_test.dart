@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:handrail_bug_reporter/handrail_bug_reporter.dart';
@@ -213,6 +214,81 @@ void main() {
 
     expect(submittedPayload?['app_brightness'], 'dark');
     expect(submittedPayload?['severity'], 'sev2');
+  });
+
+  testWidgets(
+      'web preview reports screenshot capture as intentionally unsupported',
+      (tester) async {
+    if (!kIsWeb) {
+      return;
+    }
+
+    Map<String, Object?>? submittedPayload;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: _config,
+          metadataProvider: _FakeMetadataProvider(),
+          clientFactory: (config) {
+            return HandrailBugReportClient(
+              apiBaseUrl: config.apiBaseUrl,
+              reportToken: config.reportToken,
+              httpClient: MockClient((request) async {
+                submittedPayload =
+                    jsonDecode(request.body) as Map<String, Object?>;
+                return http.Response('{"ok":true}', 201);
+              }),
+            );
+          },
+          child: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () => HandrailBugReporter.open(context),
+                    child: const Text('Open reporter'),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Screenshot unavailable'), findsOneWidget);
+    expect(
+      find.text('Screenshot capture is not supported in Flutter web preview.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('LateError'), findsNothing);
+
+    await tester.enterText(
+      find.byType(TextFormField),
+      'The preview report needs to submit without screenshot capture.',
+    );
+    await tester.pump();
+    final sendButton = find.widgetWithText(FilledButton, 'Send');
+    await tester.ensureVisible(sendButton);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(sendButton);
+    for (var i = 0; i < 10 && submittedPayload == null; i += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(submittedPayload?['screenshot_base64'], isNull);
+    expect(
+      submittedPayload?['screenshot_capture_error'],
+      'Screenshot capture is not supported in Flutter web preview.',
+    );
   });
 }
 

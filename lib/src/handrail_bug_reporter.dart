@@ -15,6 +15,11 @@ import 'handrail_bug_reporter_payload.dart';
 import 'handrail_bug_reporter_submission.dart';
 import 'handrail_device_metadata.dart';
 
+const String _webScreenshotUnsupportedReason =
+    'Screenshot capture is not supported in Flutter web preview.';
+const String _genericScreenshotCaptureFailureReason =
+    'Screenshot capture failed before the report opened.';
+
 class HandrailBugReporter extends StatefulWidget {
   const HandrailBugReporter({
     required this.config,
@@ -172,8 +177,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
       _shakeSubscription = _iosShakeChannel.receiveBroadcastStream().listen(
         (_) => _handleShakeDetected(),
         onError: (Object error) {
-          _shakeFailureReason =
-              'iOS shake listener failed: ${error.runtimeType}.';
+          _shakeFailureReason = 'iOS shake listener failed.';
         },
       );
       return;
@@ -181,8 +185,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
     _shakeSubscription = accelerometerEventStream().listen(
       _handleAccelerometer,
       onError: (Object error) {
-        _shakeFailureReason =
-            'Motion sensor listener failed: ${error.runtimeType}.';
+        _shakeFailureReason = 'Motion sensor listener failed.';
       },
     );
   }
@@ -338,7 +341,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
       return const HandrailBugReporterOpenResult.opened();
     } catch (error) {
       return HandrailBugReporterOpenResult.blocked(
-        'Bug reporter failed to open: ${error.runtimeType}.',
+        'Bug reporter failed to open.',
       );
     } finally {
       _opening = false;
@@ -346,6 +349,11 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
   }
 
   Future<_ScreenshotCaptureResult> _captureScreenshot() async {
+    if (kIsWeb) {
+      return const _ScreenshotCaptureResult.failure(
+        _webScreenshotUnsupportedReason,
+      );
+    }
     const stillRenderingReason =
         'The screen was still rendering when the report opened.';
     try {
@@ -391,7 +399,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
       return await _captureNativeScreenshot(stillRenderingReason);
     } catch (error) {
       return _captureNativeScreenshot(
-        'Screenshot capture failed: ${error.runtimeType}.',
+        _genericScreenshotCaptureFailureReason,
       );
     }
   }
@@ -436,7 +444,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
       );
     } catch (error) {
       return _ScreenshotCaptureResult.failure(
-        '$flutterFailureReason Native fallback failed: ${error.runtimeType}.',
+        '$flutterFailureReason Native screenshot fallback was unavailable.',
       );
     }
   }
