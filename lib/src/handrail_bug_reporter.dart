@@ -539,9 +539,9 @@ class _ReportSheetState extends State<_ReportSheet> {
   String? _errorMessage;
 
   static const int _descriptionMaxLength = 2000;
-  static const String _bugReportSeverityHigh = 'sev2';
-  static const String _bugReportSeverityMedium = 'sev3';
-  static const String _bugReportSeverityLow = 'sev4';
+  static const String _bugReportSeverityHigh = 'High';
+  static const String _bugReportSeverityMedium = 'Medium';
+  static const String _bugReportSeverityLow = 'Low';
   static const BorderRadius _sheetRadius =
       BorderRadius.all(Radius.circular(36));
 

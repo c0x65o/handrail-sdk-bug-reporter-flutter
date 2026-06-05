@@ -83,6 +83,27 @@ void main() {
         captured.url.toString(), 'https://example.test/api/mobile-bug-reports');
   });
 
+  test('submission can post to a same-origin Mobile Preview endpoint',
+      () async {
+    late http.Request captured;
+    final client = HandrailBugReportClient(
+      apiBaseUrl: '/api',
+      endpointPath: '/mobile-bug-reports',
+      reportToken: 'report-token',
+      httpClient: MockClient((request) async {
+        captured = request;
+        return http.Response('{"ok":true}', 201);
+      }),
+    );
+
+    final result = await client.submit(payload);
+
+    expect(result.isSuccess, isTrue);
+    expect(captured.method, 'POST');
+    expect(captured.url.toString(), '/api/mobile-bug-reports');
+    expect(captured.headers['authorization'], 'Bearer report-token');
+  });
+
   test('submission error reports non-2xx responses', () async {
     final client = HandrailBugReportClient(
       apiBaseUrl: 'https://example.test/api',

@@ -156,19 +156,30 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     Map<String, Object?>? submittedPayload;
+    http.Request? submittedRequest;
 
     await tester.pumpWidget(
       MaterialApp(
         themeMode: ThemeMode.dark,
         darkTheme: ThemeData.dark(),
         home: HandrailBugReporter(
-          config: _config,
+          config: const HandrailBugReporterConfig(
+            apiBaseUrl: '/api',
+            endpointPath: '/mobile-bug-reports',
+            projectSlug: 'handrail',
+            environment: 'dev',
+            appVersion: '1.3.225',
+            buildNumber: '1',
+            reportToken: 'report-token',
+          ),
           metadataProvider: _FakeMetadataProvider(),
           clientFactory: (config) {
             return HandrailBugReportClient(
               apiBaseUrl: config.apiBaseUrl,
               reportToken: config.reportToken,
+              endpointPath: config.endpointPath,
               httpClient: MockClient((request) async {
+                submittedRequest = request;
                 submittedPayload =
                     jsonDecode(request.body) as Map<String, Object?>;
                 return http.Response('{"ok":true}', 201);
@@ -212,8 +223,24 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
+    expect(submittedRequest?.method, 'POST');
+    expect(submittedRequest?.url.toString(), '/api/mobile-bug-reports');
     expect(submittedPayload?['app_brightness'], 'dark');
-    expect(submittedPayload?['severity'], 'sev2');
+    expect(submittedPayload?['severity'], 'High');
+    expect(submittedPayload?['app_version'], '1.3.225');
+    expect(submittedPayload?['build_number'], '1');
+    expect(
+      submittedPayload?['reporter_sdk_version'],
+      HandrailBugReporterSdkMetadata.version,
+    );
+    expect(
+      submittedPayload?['reporter_sdk_commit'],
+      HandrailBugReporterSdkMetadata.commit,
+    );
+    expect(
+      submittedPayload?['reporter_sdk_ref'],
+      HandrailBugReporterSdkMetadata.ref,
+    );
   });
 
   testWidgets(
