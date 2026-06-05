@@ -95,7 +95,13 @@ void main() {
       reporterSdkRef: 'v0.1.19',
     );
 
-    expect(payload.toJson(), containsPair('reporter_sdk_version', '0.1.19'));
+    expect(
+      payload.toJson(),
+      containsPair(
+        'reporter_sdk_version',
+        HandrailBugReporterSdkMetadata.version,
+      ),
+    );
     expect(payload.toJson(), containsPair('reporter_sdk_commit', 'sdk-commit'));
     expect(payload.toJson(), containsPair('reporter_sdk_ref', 'v0.1.19'));
     expect(payload.toJson(), containsPair('app_version', '1.3.105'));
