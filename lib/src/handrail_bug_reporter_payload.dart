@@ -75,6 +75,7 @@ class HandrailBugReportPayload {
     required String? profileKey,
     String? appVersion,
     String? buildNumber,
+    String? commitSha,
   }) {
     return HandrailBugReportPayload(
       projectSlug: config.projectSlug,
@@ -82,7 +83,7 @@ class HandrailBugReportPayload {
       appFlavor: config.appFlavor ?? config.environment,
       appVersion: _firstNonBlank(appVersion, config.appVersion),
       buildNumber: _firstNonBlank(buildNumber, config.buildNumber),
-      commitSha: config.commitSha,
+      commitSha: _firstNonBlankNullable(commitSha, config.commitSha),
       platform: device.platform,
       deviceModel: device.deviceModel,
       osVersion: device.osVersion,
@@ -155,4 +156,15 @@ class HandrailBugReportPayload {
 String _firstNonBlank(String? preferred, String fallback) {
   final normalized = preferred?.trim();
   return normalized != null && normalized.isNotEmpty ? normalized : fallback;
+}
+
+String? _firstNonBlankNullable(String? preferred, String? fallback) {
+  final normalizedPreferred = preferred?.trim();
+  if (normalizedPreferred != null && normalizedPreferred.isNotEmpty) {
+    return normalizedPreferred;
+  }
+  final normalizedFallback = fallback?.trim();
+  return normalizedFallback != null && normalizedFallback.isNotEmpty
+      ? normalizedFallback
+      : null;
 }

@@ -170,6 +170,7 @@ void main() {
             environment: 'dev',
             appVersion: '1.3.225',
             buildNumber: '1',
+            commitSha: ' widget-commit-sha ',
             reportToken: 'report-token',
           ),
           metadataProvider: _FakeMetadataProvider(),
@@ -229,6 +230,7 @@ void main() {
     expect(submittedPayload?['severity'], 'High');
     expect(submittedPayload?['app_version'], '1.3.225');
     expect(submittedPayload?['build_number'], '1');
+    expect(submittedPayload?['commit_sha'], 'widget-commit-sha');
     expect(
       submittedPayload?['reporter_sdk_version'],
       HandrailBugReporterSdkMetadata.version,

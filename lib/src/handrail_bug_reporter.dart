@@ -613,6 +613,7 @@ class _ReportSheetState extends State<_ReportSheet> {
           profileKey: profileKey,
           appVersion: buildMetadata.appVersion,
           buildNumber: buildMetadata.buildNumber,
+          commitSha: buildMetadata.commitSha,
         ),
       );
       if (!mounted) {

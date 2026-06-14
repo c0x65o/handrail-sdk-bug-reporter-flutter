@@ -138,6 +138,71 @@ void main() {
     expect(payload.buildNumber, '207');
   });
 
+  test('payload construction normalizes and preserves app commit metadata', () {
+    const config = HandrailBugReporterConfig(
+      apiBaseUrl: 'https://example.test/api',
+      projectSlug: 'handrail',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.0.87',
+      buildNumber: '1',
+      commitSha: ' configured-sha ',
+      reportToken: 'report-token',
+      routeProvider: _route,
+    );
+
+    final payload = HandrailBugReportPayload.fromConfig(
+      config: config,
+      draft: const HandrailBugReportDraft(
+        title: 'Checkout freezes',
+        description: 'The checkout screen locks after tapping submit.',
+      ),
+      device: const HandrailDeviceMetadata(platform: 'ios'),
+      profileKey: null,
+      commitSha: ' resolved-sha ',
+    );
+
+    expect(payload.commitSha, 'resolved-sha');
+    expect(payload.toJson(), containsPair('commit_sha', 'resolved-sha'));
+
+    final fallbackPayload = HandrailBugReportPayload.fromConfig(
+      config: config,
+      draft: const HandrailBugReportDraft(
+        title: 'Checkout freezes',
+        description: 'The checkout screen locks after tapping submit.',
+      ),
+      device: const HandrailDeviceMetadata(platform: 'ios'),
+      profileKey: null,
+      commitSha: '   ',
+    );
+
+    expect(fallbackPayload.commitSha, 'configured-sha');
+    expect(
+        fallbackPayload.toJson(), containsPair('commit_sha', 'configured-sha'));
+
+    const blankConfig = HandrailBugReporterConfig(
+      apiBaseUrl: 'https://example.test/api',
+      projectSlug: 'handrail',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.0.87',
+      buildNumber: '1',
+      commitSha: '   ',
+      reportToken: 'report-token',
+    );
+    final blankPayload = HandrailBugReportPayload.fromConfig(
+      config: blankConfig,
+      draft: const HandrailBugReportDraft(
+        title: 'Checkout freezes',
+        description: 'The checkout screen locks after tapping submit.',
+      ),
+      device: const HandrailDeviceMetadata(platform: 'ios'),
+      profileKey: null,
+    );
+
+    expect(blankPayload.toJson(), containsPair('commit_sha', null));
+  });
+
   test('payload construction falls back to configured version metadata', () {
     const config = HandrailBugReporterConfig(
       apiBaseUrl: 'https://example.test/api',
