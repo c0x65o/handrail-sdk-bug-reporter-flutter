@@ -12,6 +12,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'handrail_app_build_metadata.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_payload.dart';
+import 'handrail_bug_reporter_sdk_metadata.dart';
 import 'handrail_bug_reporter_submission.dart';
 import 'handrail_crash_reporter.dart';
 import 'handrail_device_metadata.dart';
@@ -552,6 +553,7 @@ class _ReportSheetState extends State<_ReportSheet> {
   String _severity = _bugReportSeverityMedium;
   late bool _includeScreenshot;
   late bool _shakeReportingEnabled;
+  HandrailAppBuildMetadata? _buildMetadata;
   bool _showReportForm = false;
   HandrailBugReportSubmissionStatus _status =
       HandrailBugReportSubmissionStatus.idle;
@@ -570,6 +572,7 @@ class _ReportSheetState extends State<_ReportSheet> {
     _includeScreenshot = widget.screenshotBase64 != null;
     _shakeReportingEnabled = widget.shakeReportingEnabled;
     _descriptionController.addListener(_handleDescriptionChanged);
+    unawaited(_loadBuildMetadata());
   }
 
   @override
@@ -590,6 +593,26 @@ class _ReportSheetState extends State<_ReportSheet> {
     });
   }
 
+  Future<void> _loadBuildMetadata() async {
+    final metadata = await HandrailAppBuildMetadata.fromConfig(widget.config);
+    if (!mounted) return;
+    setState(() {
+      _buildMetadata = metadata;
+    });
+  }
+
+  Future<HandrailAppBuildMetadata> _resolveBuildMetadata() async {
+    final existing = _buildMetadata;
+    if (existing != null) return existing;
+    final metadata = await HandrailAppBuildMetadata.fromConfig(widget.config);
+    if (mounted) {
+      setState(() {
+        _buildMetadata = metadata;
+      });
+    }
+    return metadata;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -608,8 +631,7 @@ class _ReportSheetState extends State<_ReportSheet> {
     try {
       final profileKey = await widget.config.resolveProfileKey();
       final metadata = await widget.metadataProvider.read();
-      final buildMetadata =
-          await HandrailAppBuildMetadata.fromConfig(widget.config);
+      final buildMetadata = await _resolveBuildMetadata();
       final result = await client.submit(
         HandrailBugReportPayload.fromConfig(
           config: widget.config,
@@ -969,6 +991,15 @@ class _ReportSheetState extends State<_ReportSheet> {
                             ),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _buildVersionFooterLabel(),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceMuted,
+                          height: 1.2,
+                        ),
+                  ),
                 ],
               ),
             ),
@@ -976,6 +1007,23 @@ class _ReportSheetState extends State<_ReportSheet> {
         ),
       ),
     );
+  }
+
+  String _buildVersionFooterLabel() {
+    final metadata = _buildMetadata;
+    final appVersion = _versionBuildLabel(
+      metadata?.appVersion ?? widget.config.appVersion,
+      metadata?.buildNumber ?? widget.config.buildNumber,
+    );
+    return 'App $appVersion · Bug reporter SDK ${HandrailBugReporterSdkMetadata.version}';
+  }
+
+  String _versionBuildLabel(String version, String buildNumber) {
+    final normalizedVersion =
+        version.trim().isEmpty ? 'unknown' : version.trim();
+    final normalizedBuild = buildNumber.trim();
+    if (normalizedBuild.isEmpty) return normalizedVersion;
+    return '$normalizedVersion ($normalizedBuild)';
   }
 }
 

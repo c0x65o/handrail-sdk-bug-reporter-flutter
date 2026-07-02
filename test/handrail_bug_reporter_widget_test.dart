@@ -211,6 +211,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('High'));
     await tester.pump();
+    expect(
+      find.text(
+        'App 1.3.225 (1) · Bug reporter SDK ${HandrailBugReporterSdkMetadata.version}',
+      ),
+      findsOneWidget,
+    );
     await tester.enterText(
       find.byType(TextFormField),
       'The dark mode report sheet looks wrong.',
