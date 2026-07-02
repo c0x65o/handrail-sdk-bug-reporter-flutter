@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 import 'handrail_bug_reporter_payload.dart';
@@ -58,6 +60,12 @@ class HandrailBugReportClient {
 
   Future<HandrailBugReportSubmissionResult> submit(
     HandrailBugReportPayload payload,
+  ) {
+    return submitJson(payload.toJson());
+  }
+
+  Future<HandrailBugReportSubmissionResult> submitJson(
+    Map<String, Object?> payload,
   ) async {
     try {
       final response = await _httpClient.post(
@@ -67,7 +75,7 @@ class HandrailBugReportClient {
           if (_useBearerToken) 'authorization': 'Bearer $_reportToken',
           if (!_useBearerToken) 'x-handrail-bug-report-token': _reportToken,
         },
-        body: payload.encode(),
+        body: jsonEncode(payload),
       );
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return HandrailBugReportSubmissionResult.success(

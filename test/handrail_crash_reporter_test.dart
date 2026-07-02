@@ -4,8 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:handrail_bug_reporter/handrail_bug_reporter.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
+
   test('reportError submits crash evidence through mobile bug intake',
       () async {
     Map<String, Object?>? submittedPayload;
@@ -74,6 +79,109 @@ void main() {
       submittedPayload?['description'],
       contains('remote deploy crashed'),
     );
+  });
+
+  test('pending crash reports drain on next install after reload', () async {
+    final firstRequests = <Map<String, Object?>>[];
+    final retryRequests = <Map<String, Object?>>[];
+
+    final reporter = HandrailCrashReporter(
+      config: const HandrailBugReporterConfig(
+        apiBaseUrl: 'https://example.test/api',
+        projectSlug: 'handrail',
+        environment: 'staging',
+        appFlavor: 'staging',
+        appVersion: '1.3.305',
+        buildNumber: '9',
+        reportToken: 'report-token',
+        routeProvider: _route,
+      ),
+      metadataProvider: _FakeMetadataProvider(),
+      clientFactory: (config) {
+        return HandrailBugReportClient(
+          apiBaseUrl: config.apiBaseUrl,
+          reportToken: config.reportToken,
+          httpClient: MockClient((request) async {
+            firstRequests.add(jsonDecode(request.body) as Map<String, Object?>);
+            return http.Response('temporarily unavailable', 503);
+          }),
+        );
+      },
+    );
+
+    final firstResult = await reporter.reportError(
+      StateError('reload before submit finished'),
+      StackTrace.fromString('#0 DeployScreen.save (deploy.dart:44:7)'),
+      crashType: 'platform_dispatcher_error',
+      fatal: true,
+    );
+
+    expect(firstResult?.isSuccess, isFalse);
+    expect(firstRequests, hasLength(1));
+
+    HandrailCrashReporter.install(
+      config: const HandrailBugReporterConfig(
+        apiBaseUrl: 'https://example.test/api',
+        projectSlug: 'handrail',
+        environment: 'staging',
+        appFlavor: 'staging',
+        appVersion: '1.3.305',
+        buildNumber: '9',
+        reportToken: 'report-token',
+        routeProvider: _route,
+      ),
+      metadataProvider: _FakeMetadataProvider(),
+      captureFlutterErrors: false,
+      capturePlatformErrors: false,
+      captureDebugPrint: false,
+      clientFactory: (config) {
+        return HandrailBugReportClient(
+          apiBaseUrl: config.apiBaseUrl,
+          reportToken: config.reportToken,
+          httpClient: MockClient((request) async {
+            retryRequests.add(jsonDecode(request.body) as Map<String, Object?>);
+            return http.Response('{"ok":true}', 201);
+          }),
+        );
+      },
+    );
+
+    for (var i = 0; i < 10 && retryRequests.isEmpty; i += 1) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+
+    expect(retryRequests, hasLength(1));
+    expect(retryRequests.single['source'], handrailFlutterSdkCrashSource);
+    expect(retryRequests.single['description'],
+        contains('reload before submit finished'));
+
+    HandrailCrashReporter.install(
+      config: const HandrailBugReporterConfig(
+        apiBaseUrl: 'https://example.test/api',
+        projectSlug: 'handrail',
+        environment: 'staging',
+        appFlavor: 'staging',
+        appVersion: '1.3.305',
+        buildNumber: '9',
+        reportToken: 'report-token',
+      ),
+      captureFlutterErrors: false,
+      capturePlatformErrors: false,
+      captureDebugPrint: false,
+      clientFactory: (config) {
+        return HandrailBugReportClient(
+          apiBaseUrl: config.apiBaseUrl,
+          reportToken: config.reportToken,
+          httpClient: MockClient((request) async {
+            retryRequests.add(jsonDecode(request.body) as Map<String, Object?>);
+            return http.Response('{"ok":true}', 201);
+          }),
+        );
+      },
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+
+    expect(retryRequests, hasLength(1));
   });
 }
 

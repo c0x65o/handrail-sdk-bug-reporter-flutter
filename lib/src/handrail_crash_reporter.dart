@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'handrail_app_build_metadata.dart';
 import 'handrail_bug_reporter_config.dart';
@@ -10,6 +12,9 @@ import 'handrail_bug_reporter_submission.dart';
 import 'handrail_device_metadata.dart';
 
 const String handrailFlutterSdkCrashSource = 'handrail_flutter_sdk';
+const String _pendingCrashReportsKey =
+    'handrail_bug_reporter.pending_crash_reports.v1';
+const int _maxPendingCrashReports = 8;
 
 typedef HandrailBugReportClientFactory = HandrailBugReportClient Function(
   HandrailBugReporterConfig config,
@@ -142,6 +147,7 @@ class HandrailCrashReporter {
       _previousDebugPrint = debugPrint;
       debugPrint = _handleDebugPrint;
     }
+    unawaited(_drainPendingCrashReports());
   }
 
   void dispose() {
@@ -206,30 +212,35 @@ class HandrailCrashReporter {
       ..._normalizeMetadata(metadata),
     };
 
+    final payload = HandrailBugReportPayload.fromConfig(
+      config: config,
+      draft: HandrailBugReportDraft(
+        title: _crashTitle(error, fatal: fatal),
+        description: _crashDescription(
+          error,
+          stackTrace,
+          recentLogs: recentLogs,
+          context: context,
+        ),
+        severity: fatal ? 'sev1' : 'sev2',
+        source: handrailFlutterSdkCrashSource,
+        metadata: crashMetadata,
+      ),
+      device: device,
+      profileKey: profileKey,
+      appVersion: buildMetadata.appVersion,
+      buildNumber: buildMetadata.buildNumber,
+      commitSha: buildMetadata.commitSha,
+    );
+    final payloadJson = payload.toJson();
+    final pendingId = await _storePendingCrashReport(payloadJson);
     final client = clientFactory(config);
     try {
-      return await client.submit(
-        HandrailBugReportPayload.fromConfig(
-          config: config,
-          draft: HandrailBugReportDraft(
-            title: _crashTitle(error, fatal: fatal),
-            description: _crashDescription(
-              error,
-              stackTrace,
-              recentLogs: recentLogs,
-              context: context,
-            ),
-            severity: fatal ? 'sev1' : 'sev2',
-            source: handrailFlutterSdkCrashSource,
-            metadata: crashMetadata,
-          ),
-          device: device,
-          profileKey: profileKey,
-          appVersion: buildMetadata.appVersion,
-          buildNumber: buildMetadata.buildNumber,
-          commitSha: buildMetadata.commitSha,
-        ),
-      );
+      final result = await client.submitJson(payloadJson);
+      if (result.isSuccess && pendingId != null) {
+        await _removePendingCrashReport(pendingId);
+      }
+      return result;
     } finally {
       client.close();
     }
@@ -284,6 +295,36 @@ class HandrailCrashReporter {
     }
     _previousDebugPrint?.call(message, wrapWidth: wrapWidth);
   }
+
+  Future<void> _drainPendingCrashReports() async {
+    if (!config.hasSubmissionConfig) return;
+    final blocker = await config.openBlocker();
+    if (blocker != null) return;
+
+    final entries = await _readPendingCrashReports();
+    for (final entry in entries) {
+      final id = entry.id;
+      final payload = entry.payload;
+      final projectSlug = payload['project_slug']?.toString().trim();
+      final environment = payload['environment']?.toString().trim();
+      if (projectSlug != config.projectSlug.trim() ||
+          environment != config.environment.trim()) {
+        await _removePendingCrashReport(id);
+        continue;
+      }
+
+      final client = clientFactory(config);
+      try {
+        final result = await client.submitJson(payload);
+        if (!result.isSuccess) return;
+        await _removePendingCrashReport(id);
+      } catch (_) {
+        return;
+      } finally {
+        client.close();
+      }
+    }
+  }
 }
 
 HandrailBugReportClient _defaultClientFactory(
@@ -294,6 +335,108 @@ HandrailBugReportClient _defaultClientFactory(
     reportToken: config.reportToken,
     endpointPath: config.endpointPath,
   );
+}
+
+class _PendingCrashReport {
+  const _PendingCrashReport({
+    required this.id,
+    required this.payload,
+  });
+
+  final String id;
+  final Map<String, Object?> payload;
+}
+
+Future<String?> _storePendingCrashReport(Map<String, Object?> payload) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = prefs.getStringList(_pendingCrashReportsKey) ?? <String>[];
+    final id = DateTime.now().toUtc().microsecondsSinceEpoch.toString();
+    final retained = entries.length >= _maxPendingCrashReports
+        ? entries.skip(entries.length - (_maxPendingCrashReports - 1))
+        : entries;
+    final next = <String>[
+      ...retained,
+      jsonEncode(<String, Object?>{
+        'id': id,
+        'payload': payload,
+      }),
+    ];
+    await prefs.setStringList(_pendingCrashReportsKey, next);
+    return id;
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<List<_PendingCrashReport>> _readPendingCrashReports() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = prefs.getStringList(_pendingCrashReportsKey) ?? <String>[];
+    final reports = <_PendingCrashReport>[];
+    var changed = false;
+    for (final encoded in entries) {
+      try {
+        final decoded = jsonDecode(encoded);
+        if (decoded is! Map) {
+          changed = true;
+          continue;
+        }
+        final id = decoded['id']?.toString();
+        final payload = decoded['payload'];
+        if (id == null || id.isEmpty || payload is! Map) {
+          changed = true;
+          continue;
+        }
+        reports.add(
+          _PendingCrashReport(
+            id: id,
+            payload: Map<String, Object?>.from(payload),
+          ),
+        );
+      } catch (_) {
+        changed = true;
+      }
+    }
+    if (changed) {
+      await prefs.setStringList(
+        _pendingCrashReportsKey,
+        reports
+            .map(
+              (report) => jsonEncode(<String, Object?>{
+                'id': report.id,
+                'payload': report.payload,
+              }),
+            )
+            .toList(growable: false),
+      );
+    }
+    return reports;
+  } catch (_) {
+    return const <_PendingCrashReport>[];
+  }
+}
+
+Future<void> _removePendingCrashReport(String id) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = prefs.getStringList(_pendingCrashReportsKey) ?? <String>[];
+    final next = <String>[];
+    for (final encoded in entries) {
+      try {
+        final decoded = jsonDecode(encoded);
+        if (decoded is Map && decoded['id']?.toString() == id) {
+          continue;
+        }
+      } catch (_) {
+        continue;
+      }
+      next.add(encoded);
+    }
+    await prefs.setStringList(_pendingCrashReportsKey, next);
+  } catch (_) {
+    // Persistence is best effort; crash submission should not affect app flow.
+  }
 }
 
 String _crashTitle(Object error, {required bool fatal}) {
