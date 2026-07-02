@@ -13,6 +13,7 @@ import 'handrail_app_build_metadata.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_payload.dart';
 import 'handrail_bug_reporter_submission.dart';
+import 'handrail_crash_reporter.dart';
 import 'handrail_device_metadata.dart';
 
 const String _webScreenshotUnsupportedReason =
@@ -123,6 +124,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
   final Set<int> _activePointers = <int>{};
   StreamSubscription<dynamic>? _shakeSubscription;
   Timer? _threeFingerTimer;
+  HandrailCrashReporter? _crashReporter;
   DateTime? _lastShakeAt;
   DateTime? _ignoreShakeUntil;
   String? _shakeFailureReason;
@@ -136,6 +138,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
     _shakeReportingEnabled = widget.config.triggers.shake;
     _ignoreShakeUntil = DateTime.now().add(_lifecycleShakeGracePeriod);
     _syncShakeListener();
+    _syncCrashReporter();
   }
 
   @override
@@ -146,12 +149,14 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
         _shakeReportingEnabled = widget.config.triggers.shake;
       }
       _syncShakeListener();
+      _syncCrashReporter();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _crashReporter?.dispose();
     _shakeSubscription?.cancel();
     _threeFingerTimer?.cancel();
     super.dispose();
@@ -187,6 +192,20 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
       onError: (Object error) {
         _shakeFailureReason = 'Motion sensor listener failed.';
       },
+    );
+  }
+
+  void _syncCrashReporter() {
+    _crashReporter?.dispose();
+    if (!widget.config.hasSubmissionConfig) {
+      _crashReporter = null;
+      return;
+    }
+    _crashReporter = HandrailCrashReporter.install(
+      config: widget.config,
+      metadataProvider:
+          widget.metadataProvider ?? HandrailDeviceMetadataProvider(),
+      clientFactory: widget.clientFactory,
     );
   }
 

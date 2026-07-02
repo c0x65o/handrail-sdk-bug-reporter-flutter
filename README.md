@@ -42,3 +42,26 @@ The SDK treats reporting and production submission as enabled by default once
 the public Handrail config and report token are present. Pass
 `enabled: false` or `allowProductionReporting: false` only for projects that
 intentionally opt out or require profile-gated production reports.
+
+## Crash capture
+
+When `HandrailBugReporter` is mounted with a complete submission config, the
+SDK also installs bounded crash capture. It forwards `FlutterError.onError`,
+`PlatformDispatcher.instance.onError`, and recent `debugPrint` output into the
+same `/api/mobile-bug-reports` intake with `source: handrail_flutter_sdk`.
+
+Apps can add breadcrumbs to the crash payload without coupling to a separate
+logging sink:
+
+```dart
+HandrailCrashReporter.recordLog(
+  'Remote deploy screen opened',
+  category: 'navigation',
+  context: <String, Object?>{'route': '/deployments'},
+);
+```
+
+Crash submissions include the app route, version/build, commit SHA, device/OS,
+exception type, stack trace, recent logs, reporter SDK metadata, and structured
+crash metadata. Existing error handlers still run after the Handrail reporter,
+so Sentry or app-local handlers keep their current behavior.

@@ -24,6 +24,8 @@ class HandrailBugReportDraft {
     required this.title,
     required this.description,
     this.severity,
+    this.source,
+    this.metadata = const <String, Object?>{},
     this.screenshotBase64,
     this.screenshotFilename,
     this.screenshotMimeType,
@@ -34,6 +36,8 @@ class HandrailBugReportDraft {
   final String title;
   final String description;
   final String? severity;
+  final String? source;
+  final Map<String, Object?> metadata;
   final String? screenshotBase64;
   final String? screenshotFilename;
   final String? screenshotMimeType;
@@ -59,6 +63,8 @@ class HandrailBugReportPayload {
     required this.description,
     required this.profileKey,
     required this.screenshotBase64,
+    this.source,
+    this.metadata = const <String, Object?>{},
     this.severity,
     this.screenshotFilename,
     this.screenshotMimeType,
@@ -92,6 +98,8 @@ class HandrailBugReportPayload {
       title: draft.title,
       description: draft.description,
       severity: draft.severity,
+      source: draft.source,
+      metadata: draft.metadata,
       profileKey: profileKey,
       screenshotBase64: draft.screenshotBase64,
       screenshotFilename: draft.screenshotFilename,
@@ -114,6 +122,8 @@ class HandrailBugReportPayload {
   final String title;
   final String description;
   final String? severity;
+  final String? source;
+  final Map<String, Object?> metadata;
   final String? profileKey;
   final String? screenshotBase64;
   final String? screenshotFilename;
@@ -124,7 +134,7 @@ class HandrailBugReportPayload {
   final String reporterSdkRef;
 
   Map<String, Object?> toJson() {
-    return <String, Object?>{
+    final json = <String, Object?>{
       'project_slug': projectSlug,
       'environment': environment,
       'app_flavor': appFlavor,
@@ -148,6 +158,14 @@ class HandrailBugReportPayload {
       'reporter_sdk_commit': reporterSdkCommit,
       'reporter_sdk_ref': reporterSdkRef,
     };
+    final normalizedSource = source?.trim();
+    if (normalizedSource != null && normalizedSource.isNotEmpty) {
+      json['source'] = normalizedSource;
+    }
+    if (metadata.isNotEmpty) {
+      json['metadata'] = metadata;
+    }
+    return json;
   }
 
   String encode() => jsonEncode(toJson());

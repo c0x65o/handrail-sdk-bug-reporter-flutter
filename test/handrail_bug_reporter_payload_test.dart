@@ -109,6 +109,44 @@ void main() {
     expect(payload.toJson(), containsPair('severity', 'sev3'));
   });
 
+  test('payload can carry SDK source and structured metadata', () {
+    const payload = HandrailBugReportPayload(
+      projectSlug: 'handrail',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.3.105',
+      buildNumber: '217',
+      commitSha: 'abc1234',
+      platform: 'android',
+      deviceModel: null,
+      osVersion: null,
+      route: '/deployments',
+      appBrightness: null,
+      title: 'App crashed: StateError',
+      description: 'Exception: Bad state',
+      severity: 'sev1',
+      source: handrailFlutterSdkCrashSource,
+      metadata: <String, Object?>{
+        'crash_type': 'platform_dispatcher_error',
+        'fatal': true,
+      },
+      profileKey: null,
+      screenshotBase64: null,
+    );
+
+    expect(payload.toJson(), containsPair('source', 'handrail_flutter_sdk'));
+    expect(
+      payload.toJson(),
+      containsPair(
+        'metadata',
+        <String, Object?>{
+          'crash_type': 'platform_dispatcher_error',
+          'fatal': true,
+        },
+      ),
+    );
+  });
+
   test('payload construction prefers resolved bundle version metadata', () {
     const config = HandrailBugReporterConfig(
       apiBaseUrl: 'https://example.test/api',

@@ -1,0 +1,384 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
+
+import 'handrail_app_build_metadata.dart';
+import 'handrail_bug_reporter_config.dart';
+import 'handrail_bug_reporter_payload.dart';
+import 'handrail_bug_reporter_submission.dart';
+import 'handrail_device_metadata.dart';
+
+const String handrailFlutterSdkCrashSource = 'handrail_flutter_sdk';
+
+typedef HandrailBugReportClientFactory = HandrailBugReportClient Function(
+  HandrailBugReporterConfig config,
+);
+
+class HandrailCrashLogBuffer {
+  HandrailCrashLogBuffer({this.capacity = 80});
+
+  final int capacity;
+  final List<Map<String, Object?>> _entries = <Map<String, Object?>>[];
+
+  void add(
+    String message, {
+    String level = 'info',
+    String? category,
+    Map<String, Object?> context = const <String, Object?>{},
+    DateTime? at,
+  }) {
+    final trimmed = message.trim();
+    if (trimmed.isEmpty || capacity <= 0) return;
+    _entries.add(<String, Object?>{
+      'at': (at ?? DateTime.now()).toUtc().toIso8601String(),
+      'level': _bounded(level, 40),
+      if (category != null && category.trim().isNotEmpty)
+        'category': _bounded(category, 80),
+      'message': _bounded(trimmed, 1000),
+      if (context.isNotEmpty) 'context': _normalizeMetadata(context),
+    });
+    while (_entries.length > capacity) {
+      _entries.removeAt(0);
+    }
+  }
+
+  List<Map<String, Object?>> snapshot() {
+    return _entries
+        .map((entry) => Map<String, Object?>.from(entry))
+        .toList(growable: false);
+  }
+
+  void clear() {
+    _entries.clear();
+  }
+}
+
+class HandrailCrashReporter {
+  HandrailCrashReporter({
+    required this.config,
+    HandrailBugReportClientFactory? clientFactory,
+    HandrailDeviceMetadataProvider? metadataProvider,
+    HandrailCrashLogBuffer? logBuffer,
+    this.captureFlutterErrors = true,
+    this.capturePlatformErrors = true,
+    this.captureDebugPrint = true,
+    this.platformErrorHandledFallback = true,
+  })  : clientFactory = clientFactory ?? _defaultClientFactory,
+        metadataProvider = metadataProvider ?? HandrailDeviceMetadataProvider(),
+        logBuffer = logBuffer ?? _sharedLogBuffer;
+
+  final HandrailBugReporterConfig config;
+  final HandrailBugReportClientFactory clientFactory;
+  final HandrailDeviceMetadataProvider metadataProvider;
+  final HandrailCrashLogBuffer logBuffer;
+  final bool captureFlutterErrors;
+  final bool capturePlatformErrors;
+  final bool captureDebugPrint;
+  final bool platformErrorHandledFallback;
+
+  FlutterExceptionHandler? _previousFlutterErrorHandler;
+  bool Function(Object error, StackTrace stackTrace)? _previousPlatformHandler;
+  DebugPrintCallback? _previousDebugPrint;
+  bool _installed = false;
+  String? _lastCrashSignature;
+  DateTime? _lastCrashAt;
+
+  static final HandrailCrashLogBuffer _sharedLogBuffer =
+      HandrailCrashLogBuffer();
+  static HandrailCrashReporter? _installedReporter;
+
+  static HandrailCrashReporter install({
+    required HandrailBugReporterConfig config,
+    HandrailBugReportClientFactory? clientFactory,
+    HandrailDeviceMetadataProvider? metadataProvider,
+    HandrailCrashLogBuffer? logBuffer,
+    bool captureFlutterErrors = true,
+    bool capturePlatformErrors = true,
+    bool captureDebugPrint = true,
+    bool platformErrorHandledFallback = true,
+  }) {
+    _installedReporter?.dispose();
+    final reporter = HandrailCrashReporter(
+      config: config,
+      clientFactory: clientFactory,
+      metadataProvider: metadataProvider,
+      logBuffer: logBuffer,
+      captureFlutterErrors: captureFlutterErrors,
+      capturePlatformErrors: capturePlatformErrors,
+      captureDebugPrint: captureDebugPrint,
+      platformErrorHandledFallback: platformErrorHandledFallback,
+    )..installHandlers();
+    _installedReporter = reporter;
+    return reporter;
+  }
+
+  static void recordLog(
+    String message, {
+    String level = 'info',
+    String? category,
+    Map<String, Object?> context = const <String, Object?>{},
+  }) {
+    (_installedReporter?.logBuffer ?? _sharedLogBuffer).add(
+      message,
+      level: level,
+      category: category,
+      context: context,
+    );
+  }
+
+  void installHandlers() {
+    if (_installed) return;
+    _installed = true;
+    if (captureFlutterErrors) {
+      _previousFlutterErrorHandler = FlutterError.onError;
+      FlutterError.onError = _handleFlutterError;
+    }
+    if (capturePlatformErrors) {
+      _previousPlatformHandler = ui.PlatformDispatcher.instance.onError;
+      ui.PlatformDispatcher.instance.onError = _handlePlatformError;
+    }
+    if (captureDebugPrint) {
+      _previousDebugPrint = debugPrint;
+      debugPrint = _handleDebugPrint;
+    }
+  }
+
+  void dispose() {
+    if (!_installed) return;
+    if (captureFlutterErrors) {
+      FlutterError.onError = _previousFlutterErrorHandler;
+    }
+    if (capturePlatformErrors) {
+      ui.PlatformDispatcher.instance.onError = _previousPlatformHandler;
+    }
+    if (captureDebugPrint && _previousDebugPrint != null) {
+      debugPrint = _previousDebugPrint!;
+    }
+    if (identical(_installedReporter, this)) {
+      _installedReporter = null;
+    }
+    _installed = false;
+  }
+
+  Future<HandrailBugReportSubmissionResult?> reportError(
+    Object error,
+    StackTrace stackTrace, {
+    String crashType = 'dart_error',
+    bool fatal = false,
+    bool handled = false,
+    String? library,
+    String? context,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) async {
+    if (!config.hasSubmissionConfig) return null;
+    final blocker = await config.openBlocker();
+    if (blocker != null) return null;
+
+    final signature = _crashSignature(error, stackTrace, crashType);
+    final now = DateTime.now();
+    final lastCrashAt = _lastCrashAt;
+    if (_lastCrashSignature == signature &&
+        lastCrashAt != null &&
+        now.difference(lastCrashAt) < const Duration(seconds: 2)) {
+      return null;
+    }
+    _lastCrashSignature = signature;
+    _lastCrashAt = now;
+
+    final device = await metadataProvider.read();
+    final buildMetadata = await HandrailAppBuildMetadata.fromConfig(config);
+    final profileKey = await config.resolveProfileKey();
+    final recentLogs = logBuffer.snapshot();
+    final crashMetadata = <String, Object?>{
+      'schema_version': 1,
+      'crash_type': crashType,
+      'fatal': fatal,
+      'handled': handled,
+      'library': _nullableBounded(library, 200),
+      'context': _nullableBounded(context, 1000),
+      'exception_type': error.runtimeType.toString(),
+      'exception': _bounded(error.toString(), 4000),
+      'stack_trace': _bounded(stackTrace.toString(), 12000),
+      'route': config.routeProvider?.call(),
+      'captured_at': now.toUtc().toIso8601String(),
+      'recent_logs': recentLogs,
+      ..._normalizeMetadata(metadata),
+    };
+
+    final client = clientFactory(config);
+    try {
+      return await client.submit(
+        HandrailBugReportPayload.fromConfig(
+          config: config,
+          draft: HandrailBugReportDraft(
+            title: _crashTitle(error, fatal: fatal),
+            description: _crashDescription(
+              error,
+              stackTrace,
+              recentLogs: recentLogs,
+              context: context,
+            ),
+            severity: fatal ? 'sev1' : 'sev2',
+            source: handrailFlutterSdkCrashSource,
+            metadata: crashMetadata,
+          ),
+          device: device,
+          profileKey: profileKey,
+          appVersion: buildMetadata.appVersion,
+          buildNumber: buildMetadata.buildNumber,
+          commitSha: buildMetadata.commitSha,
+        ),
+      );
+    } finally {
+      client.close();
+    }
+  }
+
+  void _handleFlutterError(FlutterErrorDetails details) {
+    unawaited(
+      reportError(
+        details.exception,
+        details.stack ?? StackTrace.current,
+        crashType: 'flutter_error',
+        fatal: false,
+        handled: false,
+        library: details.library,
+        context: details.context?.toDescription(),
+        metadata: <String, Object?>{
+          'silent': details.silent,
+          'information_collector': details.informationCollector != null,
+        },
+      ),
+    );
+
+    final previous = _previousFlutterErrorHandler;
+    if (previous != null) {
+      previous(details);
+    } else {
+      FlutterError.presentError(details);
+    }
+  }
+
+  bool _handlePlatformError(Object error, StackTrace stackTrace) {
+    unawaited(
+      reportError(
+        error,
+        stackTrace,
+        crashType: 'platform_dispatcher_error',
+        fatal: true,
+        handled: false,
+      ),
+    );
+    final previous = _previousPlatformHandler;
+    if (previous != null) {
+      return previous(error, stackTrace);
+    }
+    return platformErrorHandledFallback;
+  }
+
+  void _handleDebugPrint(String? message, {int? wrapWidth}) {
+    final text = message?.trim();
+    if (text != null && text.isNotEmpty) {
+      logBuffer.add(text, level: 'debug', category: 'debugPrint');
+    }
+    _previousDebugPrint?.call(message, wrapWidth: wrapWidth);
+  }
+}
+
+HandrailBugReportClient _defaultClientFactory(
+  HandrailBugReporterConfig config,
+) {
+  return HandrailBugReportClient(
+    apiBaseUrl: config.apiBaseUrl,
+    reportToken: config.reportToken,
+    endpointPath: config.endpointPath,
+  );
+}
+
+String _crashTitle(Object error, {required bool fatal}) {
+  final prefix = fatal ? 'App crashed' : 'Flutter error';
+  return _bounded('$prefix: ${error.runtimeType}', 240);
+}
+
+String _crashDescription(
+  Object error,
+  StackTrace stackTrace, {
+  required List<Map<String, Object?>> recentLogs,
+  String? context,
+}) {
+  final lines = <String>[
+    'Exception: ${error.toString()}',
+    if (context != null && context.trim().isNotEmpty) 'Context: $context',
+    '',
+    'Stack trace:',
+    stackTrace.toString(),
+  ];
+  if (recentLogs.isNotEmpty) {
+    lines
+      ..add('')
+      ..add('Recent logs:');
+    for (final entry in recentLogs.take(20)) {
+      final at = entry['at'];
+      final level = entry['level'];
+      final category = entry['category'];
+      final message = entry['message'];
+      lines.add(
+        [
+          if (at != null) at,
+          if (level != null) level,
+          if (category != null) category,
+          message,
+        ].whereType<Object>().join(' '),
+      );
+    }
+  }
+  return _bounded(lines.join('\n'), 8000);
+}
+
+String _crashSignature(
+  Object error,
+  StackTrace stackTrace,
+  String crashType,
+) {
+  final stack = stackTrace.toString().split('\n');
+  final firstFrame = stack.isNotEmpty ? stack.first : '';
+  return '$crashType|${error.runtimeType}|$firstFrame';
+}
+
+String _bounded(Object? value, int max) {
+  final text = (value ?? '').toString().trim();
+  if (text.length <= max) return text;
+  return text.substring(0, max);
+}
+
+String? _nullableBounded(Object? value, int max) {
+  final text = _bounded(value, max);
+  return text.isEmpty ? null : text;
+}
+
+Map<String, Object?> _normalizeMetadata(Map<String, Object?> metadata) {
+  final normalized = <String, Object?>{};
+  for (final entry in metadata.entries) {
+    final key = entry.key.trim();
+    if (key.isEmpty) continue;
+    normalized[_bounded(key, 80)] = _normalizeMetadataValue(entry.value);
+  }
+  return normalized;
+}
+
+Object? _normalizeMetadataValue(Object? value) {
+  if (value == null || value is num || value is bool) return value;
+  if (value is String) return _bounded(value, 2000);
+  if (value is Iterable) {
+    return value.take(40).map(_normalizeMetadataValue).toList(growable: false);
+  }
+  if (value is Map) {
+    final nested = <String, Object?>{};
+    for (final entry in value.entries.take(40)) {
+      nested[_bounded(entry.key, 80)] = _normalizeMetadataValue(entry.value);
+    }
+    return nested;
+  }
+  return _bounded(value, 2000);
+}
