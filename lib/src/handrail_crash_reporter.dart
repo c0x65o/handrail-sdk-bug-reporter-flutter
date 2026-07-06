@@ -178,9 +178,6 @@ class HandrailCrashReporter {
     Map<String, Object?> metadata = const <String, Object?>{},
   }) async {
     if (!config.hasSubmissionConfig) return null;
-    final blocker = await config.openBlocker();
-    if (blocker != null) return null;
-
     final signature = _crashSignature(error, stackTrace, crashType);
     final now = DateTime.now();
     final lastCrashAt = _lastCrashAt;
@@ -192,9 +189,6 @@ class HandrailCrashReporter {
     _lastCrashSignature = signature;
     _lastCrashAt = now;
 
-    final device = await metadataProvider.read();
-    final buildMetadata = await HandrailAppBuildMetadata.fromConfig(config);
-    final profileKey = await config.resolveProfileKey();
     final recentLogs = logBuffer.snapshot();
     final crashMetadata = <String, Object?>{
       'schema_version': 1,
@@ -212,7 +206,77 @@ class HandrailCrashReporter {
       ..._normalizeMetadata(metadata),
     };
 
-    final payload = HandrailBugReportPayload.fromConfig(
+    final preliminaryPayloadJson = _buildCrashPayload(
+      error: error,
+      stackTrace: stackTrace,
+      fatal: fatal,
+      context: context,
+      recentLogs: recentLogs,
+      crashMetadata: crashMetadata,
+      device: _fallbackDeviceMetadata(),
+      profileKey: null,
+      appVersion: config.appVersion,
+      buildNumber: config.buildNumber,
+      commitSha: config.commitSha,
+    ).toJson();
+    final pendingIdFuture = _storePendingCrashReport(preliminaryPayloadJson);
+
+    final blocker = await config.openBlocker();
+    if (blocker != null) {
+      final pendingId = await pendingIdFuture;
+      if (pendingId != null) {
+        await _removePendingCrashReport(pendingId);
+      }
+      return null;
+    }
+
+    final device = await metadataProvider.read();
+    final buildMetadata = await HandrailAppBuildMetadata.fromConfig(config);
+    final profileKey = await config.resolveProfileKey();
+    final payload = _buildCrashPayload(
+      error: error,
+      stackTrace: stackTrace,
+      fatal: fatal,
+      context: context,
+      recentLogs: recentLogs,
+      crashMetadata: crashMetadata,
+      device: device,
+      profileKey: profileKey,
+      appVersion: buildMetadata.appVersion,
+      buildNumber: buildMetadata.buildNumber,
+      commitSha: buildMetadata.commitSha,
+    );
+    final payloadJson = payload.toJson();
+    final pendingId = await pendingIdFuture;
+    if (pendingId != null) {
+      await _replacePendingCrashReport(pendingId, payloadJson);
+    }
+    final client = clientFactory(config);
+    try {
+      final result = await client.submitJson(payloadJson);
+      if (result.isSuccess && pendingId != null) {
+        await _removePendingCrashReport(pendingId);
+      }
+      return result;
+    } finally {
+      client.close();
+    }
+  }
+
+  HandrailBugReportPayload _buildCrashPayload({
+    required Object error,
+    required StackTrace stackTrace,
+    required bool fatal,
+    required String? context,
+    required List<Map<String, Object?>> recentLogs,
+    required Map<String, Object?> crashMetadata,
+    required HandrailDeviceMetadata device,
+    required String? profileKey,
+    required String appVersion,
+    required String buildNumber,
+    required String? commitSha,
+  }) {
+    return HandrailBugReportPayload.fromConfig(
       config: config,
       draft: HandrailBugReportDraft(
         title: _crashTitle(error, fatal: fatal),
@@ -228,22 +292,10 @@ class HandrailCrashReporter {
       ),
       device: device,
       profileKey: profileKey,
-      appVersion: buildMetadata.appVersion,
-      buildNumber: buildMetadata.buildNumber,
-      commitSha: buildMetadata.commitSha,
+      appVersion: appVersion,
+      buildNumber: buildNumber,
+      commitSha: commitSha,
     );
-    final payloadJson = payload.toJson();
-    final pendingId = await _storePendingCrashReport(payloadJson);
-    final client = clientFactory(config);
-    try {
-      final result = await client.submitJson(payloadJson);
-      if (result.isSuccess && pendingId != null) {
-        await _removePendingCrashReport(pendingId);
-      }
-      return result;
-    } finally {
-      client.close();
-    }
   }
 
   void _handleFlutterError(FlutterErrorDetails details) {
@@ -437,6 +489,44 @@ Future<void> _removePendingCrashReport(String id) async {
   } catch (_) {
     // Persistence is best effort; crash submission should not affect app flow.
   }
+}
+
+Future<void> _replacePendingCrashReport(
+  String id,
+  Map<String, Object?> payload,
+) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = prefs.getStringList(_pendingCrashReportsKey) ?? <String>[];
+    final replacement = jsonEncode(<String, Object?>{
+      'id': id,
+      'payload': payload,
+    });
+    final next = entries
+        .map((encoded) {
+          try {
+            final decoded = jsonDecode(encoded);
+            if (decoded is Map && decoded['id']?.toString() == id) {
+              return replacement;
+            }
+          } catch (_) {
+            return null;
+          }
+          return encoded;
+        })
+        .whereType<String>()
+        .toList(growable: false);
+    await prefs.setStringList(_pendingCrashReportsKey, next);
+  } catch (_) {
+    // Persistence is best effort; keep the original pending payload if replace fails.
+  }
+}
+
+HandrailDeviceMetadata _fallbackDeviceMetadata() {
+  if (kIsWeb) {
+    return const HandrailDeviceMetadata(platform: 'web');
+  }
+  return HandrailDeviceMetadata(platform: defaultTargetPlatform.name);
 }
 
 String _crashTitle(Object error, {required bool fatal}) {
