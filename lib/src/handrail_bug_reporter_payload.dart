@@ -31,6 +31,7 @@ class HandrailBugReportDraft {
     this.screenshotMimeType,
     this.screenshotCaptureError,
     this.appBrightness,
+    this.deployFixedAppToStores = false,
   });
 
   final String title;
@@ -43,6 +44,7 @@ class HandrailBugReportDraft {
   final String? screenshotMimeType;
   final String? screenshotCaptureError;
   final String? appBrightness;
+  final bool deployFixedAppToStores;
 }
 
 @immutable
@@ -63,6 +65,7 @@ class HandrailBugReportPayload {
     required this.description,
     required this.profileKey,
     required this.screenshotBase64,
+    this.deployFixedAppToStores = false,
     this.source,
     this.metadata = const <String, Object?>{},
     this.severity,
@@ -105,6 +108,7 @@ class HandrailBugReportPayload {
       screenshotFilename: draft.screenshotFilename,
       screenshotMimeType: draft.screenshotMimeType,
       screenshotCaptureError: draft.screenshotCaptureError,
+      deployFixedAppToStores: draft.deployFixedAppToStores,
     );
   }
 
@@ -129,6 +133,7 @@ class HandrailBugReportPayload {
   final String? screenshotFilename;
   final String? screenshotMimeType;
   final String? screenshotCaptureError;
+  final bool deployFixedAppToStores;
   final String reporterSdkVersion;
   final String? reporterSdkCommit;
   final String reporterSdkRef;
@@ -154,6 +159,7 @@ class HandrailBugReportPayload {
       'screenshot_filename': screenshotFilename,
       'screenshot_mime_type': screenshotMimeType,
       'screenshot_capture_error': screenshotCaptureError,
+      'deploy_fixed_app_to_stores': deployFixedAppToStores,
       'reporter_sdk_version': reporterSdkVersion,
       'reporter_sdk_commit': reporterSdkCommit,
       'reporter_sdk_ref': reporterSdkRef,

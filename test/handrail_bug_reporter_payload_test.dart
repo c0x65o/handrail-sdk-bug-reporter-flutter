@@ -29,6 +29,7 @@ void main() {
         screenshotMimeType: 'image/png',
         screenshotCaptureError: null,
         appBrightness: 'dark',
+        deployFixedAppToStores: true,
       ),
       device: const HandrailDeviceMetadata(
         platform: 'ios',
@@ -58,6 +59,7 @@ void main() {
       'screenshot_filename': 'mobile-screenshot.png',
       'screenshot_mime_type': 'image/png',
       'screenshot_capture_error': null,
+      'deploy_fixed_app_to_stores': true,
       'reporter_sdk_version': HandrailBugReporterSdkMetadata.version,
       'reporter_sdk_commit': HandrailBugReporterSdkMetadata.commit,
       'reporter_sdk_ref': HandrailBugReporterSdkMetadata.ref,

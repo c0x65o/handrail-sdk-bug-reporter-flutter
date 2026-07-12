@@ -552,6 +552,7 @@ class _ReportSheetState extends State<_ReportSheet> {
   final _descriptionController = TextEditingController();
   String _severity = _bugReportSeverityMedium;
   late bool _includeScreenshot;
+  bool _deployFixedAppToStores = false;
   late bool _shakeReportingEnabled;
   HandrailAppBuildMetadata? _buildMetadata;
   bool _showReportForm = false;
@@ -649,6 +650,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                 ? widget.screenshotFailureReason
                 : null,
             appBrightness: widget.appBrightness.name,
+            deployFixedAppToStores: _deployFixedAppToStores,
           ),
           device: metadata,
           profileKey: profileKey,
@@ -918,6 +920,36 @@ class _ReportSheetState extends State<_ReportSheet> {
                           height: 1.25,
                         ),
                   ),
+                  if (widget.config.environment.trim().toLowerCase() ==
+                      'staging') ...[
+                    const SizedBox(height: 24),
+                    Divider(height: 1, color: colors.divider),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Deploy fixed app to TestFlight and Google Play',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                              color: colors.onSurface,
+                            ),
+                          ),
+                        ),
+                        Checkbox(
+                          value: _deployFixedAppToStores,
+                          onChanged: submitting
+                              ? null
+                              : (value) {
+                                  setState(() {
+                                    _deployFixedAppToStores = value ?? false;
+                                  });
+                                },
+                        ),
+                      ],
+                    ),
+                  ],
                   if (widget.screenshotBase64 != null) ...[
                     const SizedBox(height: 24),
                     Divider(height: 1, color: colors.divider),

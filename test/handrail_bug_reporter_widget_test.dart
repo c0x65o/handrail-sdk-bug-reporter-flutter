@@ -252,6 +252,107 @@ void main() {
   });
 
   testWidgets(
+      'staging report can request fixed app delivery to both mobile stores',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Map<String, Object?>? submittedPayload;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: _config,
+          metadataProvider: _FakeMetadataProvider(),
+          clientFactory: (config) => HandrailBugReportClient(
+            apiBaseUrl: config.apiBaseUrl,
+            reportToken: config.reportToken,
+            httpClient: MockClient((request) async {
+              submittedPayload =
+                  jsonDecode(request.body) as Map<String, Object?>;
+              return http.Response('{"ok":true}', 201);
+            }),
+          ),
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => HandrailBugReporter.open(context),
+                child: const Text('Open reporter'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+
+    final storeOption =
+        find.text('Deploy fixed app to TestFlight and Google Play');
+    expect(storeOption, findsOneWidget);
+    await tester.ensureVisible(storeOption);
+    await tester.tap(find.byType(Checkbox));
+    await tester.enterText(
+      find.byType(TextFormField),
+      'The staging app still shows the broken behavior.',
+    );
+    await tester.pump();
+    final sendButton = find.widgetWithText(FilledButton, 'Send');
+    await tester.ensureVisible(sendButton);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(sendButton);
+    for (var i = 0; i < 10 && submittedPayload == null; i += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(submittedPayload?['environment'], 'staging');
+    expect(submittedPayload?['deploy_fixed_app_to_stores'], isTrue);
+  });
+
+  testWidgets('mobile store deploy option is hidden outside staging',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: const HandrailBugReporterConfig(
+            projectSlug: 'handrail',
+            environment: 'production',
+            appVersion: '1.2.3',
+            buildNumber: '42',
+            reportToken: 'report-token',
+          ),
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => HandrailBugReporter.open(context),
+                child: const Text('Open reporter'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Deploy fixed app to TestFlight and Google Play'),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
       'web preview reports screenshot capture as intentionally unsupported',
       (tester) async {
     if (!kIsWeb) {
