@@ -8,7 +8,7 @@ void main() {
       () {
     const config = HandrailBugReporterConfig(
       apiBaseUrl: 'https://example.test/api',
-      projectSlug: 'handrail',
+      projectId: 'project-123',
       environment: 'staging',
       appFlavor: 'staging',
       appVersion: '1.3.105',
@@ -40,7 +40,6 @@ void main() {
     );
 
     expect(payload.toJson(), <String, Object?>{
-      'project_slug': 'handrail',
       'environment': 'staging',
       'app_flavor': 'staging',
       'app_version': '1.3.105',
@@ -63,7 +62,9 @@ void main() {
       'reporter_sdk_version': HandrailBugReporterSdkMetadata.version,
       'reporter_sdk_commit': HandrailBugReporterSdkMetadata.commit,
       'reporter_sdk_ref': HandrailBugReporterSdkMetadata.ref,
+      'project_id': 'project-123',
     });
+    expect(payload.toJson(), isNot(contains('project_slug')));
   });
 
   test('reporter SDK metadata is included and version matches pubspec', () {

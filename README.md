@@ -43,6 +43,20 @@ the public Handrail config and report token are present. Pass
 `enabled: false` or `allowProductionReporting: false` only for projects that
 intentionally opt out or require profile-gated production reports.
 
+Configure the reporter with Handrail's immutable project ID. The SDK submits
+that value as `project_id`; slug-based lookup is retained only as a deprecated
+compatibility path for apps built with an older integration:
+
+```dart
+HandrailBugReporterConfig(
+  projectId: const String.fromEnvironment('HANDRAIL_BUG_REPORT_PROJECT'),
+  environment: const String.fromEnvironment('HANDRAIL_BUG_REPORT_ENV'),
+  appVersion: appVersion,
+  buildNumber: buildNumber,
+  reportToken: const String.fromEnvironment('HANDRAIL_BUG_REPORT_TOKEN'),
+);
+```
+
 ## Crash capture
 
 When `HandrailBugReporter` is mounted with a complete submission config, the

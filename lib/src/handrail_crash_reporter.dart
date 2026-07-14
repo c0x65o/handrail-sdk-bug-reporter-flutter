@@ -357,10 +357,13 @@ class HandrailCrashReporter {
     for (final entry in entries) {
       final id = entry.id;
       final payload = entry.payload;
+      final projectId = payload['project_id']?.toString().trim();
       final projectSlug = payload['project_slug']?.toString().trim();
       final environment = payload['environment']?.toString().trim();
-      if (projectSlug != config.projectSlug.trim() ||
-          environment != config.environment.trim()) {
+      final matchesProject = config.projectId.trim().isNotEmpty
+          ? projectId == config.projectId.trim()
+          : projectSlug == config.projectSlug.trim();
+      if (!matchesProject || environment != config.environment.trim()) {
         await _removePendingCrashReport(id);
         continue;
       }

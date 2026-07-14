@@ -50,7 +50,9 @@ class HandrailBugReportDraft {
 @immutable
 class HandrailBugReportPayload {
   const HandrailBugReportPayload({
-    required this.projectSlug,
+    this.projectId,
+    @Deprecated('Use projectId. Slug-based project lookup is ambiguous.')
+    this.projectSlug,
     required this.environment,
     required this.appFlavor,
     required this.appVersion,
@@ -87,6 +89,9 @@ class HandrailBugReportPayload {
     String? commitSha,
   }) {
     return HandrailBugReportPayload(
+      projectId: config.projectId,
+      // Preserve the legacy field only for apps that have not migrated their
+      // reporter configuration yet. New integrations submit project_id.
       projectSlug: config.projectSlug,
       environment: config.environment,
       appFlavor: config.appFlavor ?? config.environment,
@@ -112,7 +117,9 @@ class HandrailBugReportPayload {
     );
   }
 
-  final String projectSlug;
+  final String? projectId;
+  @Deprecated('Use projectId. Slug-based project lookup is ambiguous.')
+  final String? projectSlug;
   final String environment;
   final String appFlavor;
   final String appVersion;
@@ -140,7 +147,6 @@ class HandrailBugReportPayload {
 
   Map<String, Object?> toJson() {
     final json = <String, Object?>{
-      'project_slug': projectSlug,
       'environment': environment,
       'app_flavor': appFlavor,
       'app_version': appVersion,
@@ -164,6 +170,15 @@ class HandrailBugReportPayload {
       'reporter_sdk_commit': reporterSdkCommit,
       'reporter_sdk_ref': reporterSdkRef,
     };
+    final normalizedProjectId = projectId?.trim();
+    if (normalizedProjectId != null && normalizedProjectId.isNotEmpty) {
+      json['project_id'] = normalizedProjectId;
+    } else {
+      final normalizedProjectSlug = projectSlug?.trim();
+      if (normalizedProjectSlug != null && normalizedProjectSlug.isNotEmpty) {
+        json['project_slug'] = normalizedProjectSlug;
+      }
+    }
     final normalizedSource = source?.trim();
     if (normalizedSource != null && normalizedSource.isNotEmpty) {
       json['source'] = normalizedSource;

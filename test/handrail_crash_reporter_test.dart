@@ -25,7 +25,7 @@ void main() {
     final reporter = HandrailCrashReporter(
       config: const HandrailBugReporterConfig(
         apiBaseUrl: 'https://example.test/api',
-        projectSlug: 'handrail',
+        projectId: 'project-123',
         environment: 'staging',
         appFlavor: 'staging',
         appVersion: '1.3.305',
@@ -63,7 +63,8 @@ void main() {
     expect(result?.isSuccess, isTrue);
     expect(submittedPayload?['source'], handrailFlutterSdkCrashSource);
     expect(submittedPayload?['severity'], 'sev1');
-    expect(submittedPayload?['project_slug'], 'handrail');
+    expect(submittedPayload?['project_id'], 'project-123');
+    expect(submittedPayload, isNot(contains('project_slug')));
     expect(submittedPayload?['environment'], 'staging');
     expect(submittedPayload?['route'], '/deployments');
     expect(submittedPayload?['commit_sha'], 'crash-commit');

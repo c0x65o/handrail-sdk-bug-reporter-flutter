@@ -19,7 +19,7 @@ void main() {
 
   test('environment gating allows non-production with token config', () async {
     const config = HandrailBugReporterConfig(
-      projectSlug: 'handrail',
+      projectId: 'project-123',
       environment: 'staging',
       appVersion: '1.2.3',
       buildNumber: '42',
@@ -27,8 +27,22 @@ void main() {
     );
 
     expect(config.hasSubmissionConfig, isTrue);
+    expect(config.projectId, 'project-123');
     expect(config.apiBaseUrl, defaultHandrailBugReportApiBaseUrl);
     expect(await config.canOpenReporter(), isTrue);
+  });
+
+  test('missing project configuration reports a project ID blocker', () async {
+    const config = HandrailBugReporterConfig(
+      environment: 'staging',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+    );
+
+    expect(config.hasSubmissionConfig, isFalse);
+    expect(
+        await config.openBlocker(), 'Bug reporting is missing the project ID.');
   });
 
   test('environment gating allows production by default', () async {

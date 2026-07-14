@@ -30,7 +30,9 @@ class HandrailBugReporterTriggers {
 @immutable
 class HandrailBugReporterConfig {
   const HandrailBugReporterConfig({
-    required this.projectSlug,
+    this.projectId = '',
+    @Deprecated('Use projectId. Slug-based project lookup is ambiguous.')
+    this.projectSlug = '',
     required this.environment,
     required this.appVersion,
     required this.buildNumber,
@@ -49,7 +51,7 @@ class HandrailBugReporterConfig {
   factory HandrailBugReporterConfig.disabled() {
     return const HandrailBugReporterConfig(
       apiBaseUrl: '',
-      projectSlug: '',
+      projectId: '',
       environment: '',
       appVersion: '',
       buildNumber: '',
@@ -61,6 +63,8 @@ class HandrailBugReporterConfig {
   }
 
   final String apiBaseUrl;
+  final String projectId;
+  @Deprecated('Use projectId. Slug-based project lookup is ambiguous.')
   final String projectSlug;
   final String environment;
   final String appVersion;
@@ -80,7 +84,7 @@ class HandrailBugReporterConfig {
   bool get hasSubmissionConfig {
     return enabled &&
         apiBaseUrl.trim().isNotEmpty &&
-        projectSlug.trim().isNotEmpty &&
+        (projectId.trim().isNotEmpty || projectSlug.trim().isNotEmpty) &&
         environment.trim().isNotEmpty &&
         reportToken.trim().isNotEmpty;
   }
@@ -96,8 +100,8 @@ class HandrailBugReporterConfig {
     if (apiBaseUrl.trim().isEmpty) {
       return 'Bug reporting is missing the API URL.';
     }
-    if (projectSlug.trim().isEmpty) {
-      return 'Bug reporting is missing the project slug.';
+    if (projectId.trim().isEmpty && projectSlug.trim().isEmpty) {
+      return 'Bug reporting is missing the project ID.';
     }
     if (environment.trim().isEmpty) {
       return 'Bug reporting is missing the environment.';
