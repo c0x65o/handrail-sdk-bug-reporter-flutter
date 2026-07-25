@@ -22,6 +22,14 @@ void main() {
         category: 'navigation',
         context: const <String, Object?>{'route': '/deployments'},
       );
+    final stackTrace = StackTrace.fromString(
+      List<String>.generate(
+        320,
+        (index) =>
+            '#$index DeployScreen.build (package:handrail/deploy.dart:${index + 1}:3)',
+      ).join('\n'),
+    );
+    expect(stackTrace.toString().length, greaterThan(12000));
     final reporter = HandrailCrashReporter(
       config: const HandrailBugReporterConfig(
         apiBaseUrl: 'https://example.test/api',
@@ -51,7 +59,7 @@ void main() {
 
     final result = await reporter.reportError(
       StateError('remote deploy crashed'),
-      StackTrace.fromString('#0 DeployScreen.build (deploy.dart:12:3)'),
+      stackTrace,
       crashType: 'flutter_error',
       fatal: true,
       context: 'building DeployScreen',
@@ -74,6 +82,7 @@ void main() {
     expect(metadata?['fatal'], isTrue);
     expect(metadata?['handled'], isFalse);
     expect(metadata?['exception_type'], 'StateError');
+    expect(metadata?['stack_trace'], stackTrace.toString());
     expect(metadata?['deploy_target_id'], 'target-123');
     expect(metadata?['recent_logs'], isA<List<Object?>>());
     expect(

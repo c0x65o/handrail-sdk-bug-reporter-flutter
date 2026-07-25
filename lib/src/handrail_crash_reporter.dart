@@ -199,7 +199,7 @@ class HandrailCrashReporter {
       'context': _nullableBounded(context, 1000),
       'exception_type': error.runtimeType.toString(),
       'exception': _bounded(error.toString(), 4000),
-      'stack_trace': _bounded(stackTrace.toString(), 12000),
+      'stack_trace': stackTrace.toString(),
       'route': config.routeProvider?.call(),
       'captured_at': now.toUtc().toIso8601String(),
       'recent_logs': recentLogs,
