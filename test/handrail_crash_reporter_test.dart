@@ -70,6 +70,7 @@ void main() {
 
     expect(result?.isSuccess, isTrue);
     expect(submittedPayload?['source'], handrailFlutterSdkCrashSource);
+    expect(submittedPayload?['title'], 'Unhandled app error: StateError');
     expect(submittedPayload?['severity'], 'sev1');
     expect(submittedPayload?['project_id'], 'project-123');
     expect(submittedPayload, isNot(contains('project_slug')));
@@ -83,6 +84,14 @@ void main() {
     expect(metadata?['handled'], isFalse);
     expect(metadata?['exception_type'], 'StateError');
     expect(metadata?['stack_trace'], stackTrace.toString());
+    expect(
+      metadata?['event_id'],
+      matches(
+        RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        ),
+      ),
+    );
     expect(metadata?['deploy_target_id'], 'target-123');
     expect(metadata?['recent_logs'], isA<List<Object?>>());
     expect(

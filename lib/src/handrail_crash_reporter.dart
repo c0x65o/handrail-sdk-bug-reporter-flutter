@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -190,6 +191,7 @@ class HandrailCrashReporter {
     _lastCrashAt = now;
 
     final recentLogs = logBuffer.snapshot();
+    final crashEventId = _newCrashEventId();
     final crashMetadata = <String, Object?>{
       'schema_version': 1,
       'crash_type': crashType,
@@ -204,6 +206,7 @@ class HandrailCrashReporter {
       'captured_at': now.toUtc().toIso8601String(),
       'recent_logs': recentLogs,
       ..._normalizeMetadata(metadata),
+      'event_id': crashEventId,
     };
 
     final preliminaryPayloadJson = _buildCrashPayload(
@@ -382,6 +385,19 @@ class HandrailCrashReporter {
   }
 }
 
+String _newCrashEventId() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  String hex(int start, int end) => bytes
+      .sublist(start, end)
+      .map((value) => value.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return '${hex(0, 4)}-${hex(4, 6)}-${hex(6, 8)}-'
+      '${hex(8, 10)}-${hex(10, 16)}';
+}
+
 HandrailBugReportClient _defaultClientFactory(
   HandrailBugReporterConfig config,
 ) {
@@ -533,7 +549,7 @@ HandrailDeviceMetadata _fallbackDeviceMetadata() {
 }
 
 String _crashTitle(Object error, {required bool fatal}) {
-  final prefix = fatal ? 'App crashed' : 'Flutter error';
+  final prefix = fatal ? 'Unhandled app error' : 'Flutter error';
   return _bounded('$prefix: ${error.runtimeType}', 240);
 }
 
