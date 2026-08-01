@@ -67,6 +67,7 @@ class HandrailBugReportPayload {
     required this.description,
     required this.profileKey,
     required this.screenshotBase64,
+    this.username,
     this.deployFixedAppToStores = false,
     this.source,
     this.metadata = const <String, Object?>{},
@@ -84,6 +85,7 @@ class HandrailBugReportPayload {
     required HandrailBugReportDraft draft,
     required HandrailDeviceMetadata device,
     required String? profileKey,
+    String? username,
     String? appVersion,
     String? buildNumber,
     String? commitSha,
@@ -109,6 +111,7 @@ class HandrailBugReportPayload {
       source: draft.source,
       metadata: draft.metadata,
       profileKey: profileKey,
+      username: _firstNonBlankNullable(username, config.username),
       screenshotBase64: draft.screenshotBase64,
       screenshotFilename: draft.screenshotFilename,
       screenshotMimeType: draft.screenshotMimeType,
@@ -136,6 +139,7 @@ class HandrailBugReportPayload {
   final String? source;
   final Map<String, Object?> metadata;
   final String? profileKey;
+  final String? username;
   final String? screenshotBase64;
   final String? screenshotFilename;
   final String? screenshotMimeType;
@@ -185,6 +189,10 @@ class HandrailBugReportPayload {
     }
     if (metadata.isNotEmpty) {
       json['metadata'] = metadata;
+    }
+    final normalizedUsername = username?.trim();
+    if (normalizedUsername != null && normalizedUsername.isNotEmpty) {
+      json['username'] = normalizedUsername;
     }
     return json;
   }

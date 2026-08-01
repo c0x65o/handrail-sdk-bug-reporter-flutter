@@ -163,7 +163,7 @@ void main() {
         themeMode: ThemeMode.dark,
         darkTheme: ThemeData.dark(),
         home: HandrailBugReporter(
-          config: const HandrailBugReporterConfig(
+          config: HandrailBugReporterConfig(
             apiBaseUrl: '/api',
             endpointPath: '/mobile-bug-reports',
             projectSlug: 'handrail',
@@ -172,6 +172,7 @@ void main() {
             buildNumber: '1',
             commitSha: ' widget-commit-sha ',
             reportToken: 'report-token',
+            usernameProvider: () async => ' widget-user ',
           ),
           metadataProvider: _FakeMetadataProvider(),
           clientFactory: (config) {
@@ -237,6 +238,7 @@ void main() {
     expect(submittedPayload?['app_version'], '1.3.225');
     expect(submittedPayload?['build_number'], '1');
     expect(submittedPayload?['commit_sha'], 'widget-commit-sha');
+    expect(submittedPayload?['username'], 'widget-user');
     expect(
       submittedPayload?['reporter_sdk_version'],
       HandrailBugReporterSdkMetadata.version,

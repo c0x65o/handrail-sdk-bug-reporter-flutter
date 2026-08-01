@@ -218,6 +218,7 @@ class HandrailCrashReporter {
       crashMetadata: crashMetadata,
       device: _fallbackDeviceMetadata(),
       profileKey: null,
+      username: config.username,
       appVersion: config.appVersion,
       buildNumber: config.buildNumber,
       commitSha: config.commitSha,
@@ -236,6 +237,7 @@ class HandrailCrashReporter {
     final device = await metadataProvider.read();
     final buildMetadata = await HandrailAppBuildMetadata.fromConfig(config);
     final profileKey = await config.resolveProfileKey();
+    final username = await config.resolveUsername();
     final payload = _buildCrashPayload(
       error: error,
       stackTrace: stackTrace,
@@ -245,6 +247,7 @@ class HandrailCrashReporter {
       crashMetadata: crashMetadata,
       device: device,
       profileKey: profileKey,
+      username: username,
       appVersion: buildMetadata.appVersion,
       buildNumber: buildMetadata.buildNumber,
       commitSha: buildMetadata.commitSha,
@@ -275,6 +278,7 @@ class HandrailCrashReporter {
     required Map<String, Object?> crashMetadata,
     required HandrailDeviceMetadata device,
     required String? profileKey,
+    required String? username,
     required String appVersion,
     required String buildNumber,
     required String? commitSha,
@@ -295,6 +299,7 @@ class HandrailCrashReporter {
       ),
       device: device,
       profileKey: profileKey,
+      username: username,
       appVersion: appVersion,
       buildNumber: buildNumber,
       commitSha: commitSha,

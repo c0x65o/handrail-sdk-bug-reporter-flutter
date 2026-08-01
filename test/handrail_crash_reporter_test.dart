@@ -31,7 +31,7 @@ void main() {
     );
     expect(stackTrace.toString().length, greaterThan(12000));
     final reporter = HandrailCrashReporter(
-      config: const HandrailBugReporterConfig(
+      config: HandrailBugReporterConfig(
         apiBaseUrl: 'https://example.test/api',
         projectId: 'project-123',
         environment: 'staging',
@@ -41,6 +41,7 @@ void main() {
         commitSha: ' crash-commit ',
         reportToken: 'report-token',
         routeProvider: _route,
+        usernameProvider: () async => ' crash-user ',
       ),
       metadataProvider: _FakeMetadataProvider(),
       logBuffer: logBuffer,
@@ -77,6 +78,7 @@ void main() {
     expect(submittedPayload?['environment'], 'staging');
     expect(submittedPayload?['route'], '/deployments');
     expect(submittedPayload?['commit_sha'], 'crash-commit');
+    expect(submittedPayload?['username'], 'crash-user');
 
     final metadata = submittedPayload?['metadata'] as Map<String, Object?>?;
     expect(metadata?['crash_type'], 'flutter_error');

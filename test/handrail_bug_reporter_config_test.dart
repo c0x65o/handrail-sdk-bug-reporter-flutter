@@ -98,4 +98,28 @@ void main() {
     expect(await config.resolveProfileKey(), 'trusted-profile');
     expect(callbackCalls, 1);
   });
+
+  test('username resolution trims provider values and falls back to config',
+      () async {
+    final providerConfig = HandrailBugReporterConfig(
+      projectId: 'project-123',
+      environment: 'staging',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+      username: 'fallback-user',
+      usernameProvider: () async => ' current-user ',
+    );
+    const fallbackConfig = HandrailBugReporterConfig(
+      projectId: 'project-123',
+      environment: 'staging',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+      username: ' fallback-user ',
+    );
+
+    expect(await providerConfig.resolveUsername(), 'current-user');
+    expect(await fallbackConfig.resolveUsername(), 'fallback-user');
+  });
 }

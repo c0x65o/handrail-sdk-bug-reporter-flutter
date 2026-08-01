@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 typedef HandrailProfileKeyProvider = Future<String?> Function();
+typedef HandrailUsernameProvider = Future<String?> Function();
 typedef HandrailRouteProvider = String? Function();
 
 const String defaultHandrailBugReportApiBaseUrl =
@@ -44,6 +45,8 @@ class HandrailBugReporterConfig {
     this.enabled = true,
     this.allowProductionReporting = true,
     this.triggers = const HandrailBugReporterTriggers(),
+    this.username,
+    this.usernameProvider,
     this.profileKeyProvider,
     this.routeProvider,
   });
@@ -76,6 +79,8 @@ class HandrailBugReporterConfig {
   final bool enabled;
   final bool allowProductionReporting;
   final HandrailBugReporterTriggers triggers;
+  final String? username;
+  final HandrailUsernameProvider? usernameProvider;
   final HandrailProfileKeyProvider? profileKeyProvider;
   final HandrailRouteProvider? routeProvider;
 
@@ -128,5 +133,17 @@ class HandrailBugReporterConfig {
     final key = await profileKeyProvider?.call();
     final trimmed = key?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  Future<String?> resolveUsername() async {
+    final provided = await usernameProvider?.call();
+    final trimmedProvided = provided?.trim();
+    if (trimmedProvided != null && trimmedProvided.isNotEmpty) {
+      return trimmedProvided;
+    }
+    final trimmedUsername = username?.trim();
+    return trimmedUsername == null || trimmedUsername.isEmpty
+        ? null
+        : trimmedUsername;
   }
 }

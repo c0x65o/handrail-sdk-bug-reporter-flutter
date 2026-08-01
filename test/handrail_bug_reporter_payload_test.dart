@@ -15,6 +15,7 @@ void main() {
       buildNumber: '217',
       commitSha: 'abc1234',
       reportToken: 'report-token',
+      username: ' alice@example.test ',
       routeProvider: _route,
     );
 
@@ -63,6 +64,7 @@ void main() {
       'reporter_sdk_commit': HandrailBugReporterSdkMetadata.commit,
       'reporter_sdk_ref': HandrailBugReporterSdkMetadata.ref,
       'project_id': 'project-123',
+      'username': 'alice@example.test',
     });
     expect(payload.toJson(), isNot(contains('project_slug')));
   });
@@ -110,6 +112,30 @@ void main() {
     expect(payload.toJson(), containsPair('app_version', '1.3.105'));
     expect(payload.toJson(), containsPair('build_number', '217'));
     expect(payload.toJson(), containsPair('severity', 'sev3'));
+  });
+
+  test('payload omits a blank optional username', () {
+    const payload = HandrailBugReportPayload(
+      projectId: 'project-123',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      commitSha: null,
+      platform: 'ios',
+      deviceModel: null,
+      osVersion: null,
+      route: null,
+      appBrightness: null,
+      title: 'Checkout freezes',
+      description: 'The checkout screen locks.',
+      severity: 'sev3',
+      profileKey: null,
+      screenshotBase64: null,
+      username: '   ',
+    );
+
+    expect(payload.toJson(), isNot(contains('username')));
   });
 
   test('payload can carry SDK source and structured metadata', () {

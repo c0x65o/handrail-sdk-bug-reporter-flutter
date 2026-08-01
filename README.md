@@ -54,8 +54,15 @@ HandrailBugReporterConfig(
   appVersion: appVersion,
   buildNumber: buildNumber,
   reportToken: const String.fromEnvironment('HANDRAIL_BUG_REPORT_TOKEN'),
+  usernameProvider: () async => signedInUser?.username,
 );
 ```
+
+`username` and `usernameProvider` are optional. When a non-blank username is
+available, the SDK includes it in manual and crash report payloads so Handrail
+can display who submitted the report. Use `usernameProvider` when the signed-in
+user can change while the app is running; a provider value takes precedence
+over the fixed `username` value.
 
 ## Crash capture
 
