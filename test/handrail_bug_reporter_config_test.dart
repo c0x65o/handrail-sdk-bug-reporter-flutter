@@ -136,6 +136,8 @@ void main() {
         userIdentifier: 'user-123',
         sessionIdentifier: 'session-123',
         verifier: 'session-token',
+        issuedAt: '2026-08-03T12:00:00.000Z',
+        nonce: 'assertion-nonce-1234567890',
       ),
     );
     final unsupported = HandrailBugReporterConfig(
@@ -149,6 +151,8 @@ void main() {
         userIdentifier: 'user-123',
         sessionIdentifier: 'session-123',
         verifier: 'session-token',
+        issuedAt: '2026-08-03T12:00:00.000Z',
+        nonce: 'assertion-nonce-1234567890',
       ),
     );
 
@@ -159,8 +163,28 @@ void main() {
         'user_identifier': 'user-123',
         'session_identifier': 'session-123',
         'verifier': 'session-token',
+        'issued_at': '2026-08-03T12:00:00.000Z',
+        'nonce': 'assertion-nonce-1234567890',
       },
     );
     expect(await unsupported.resolveReporterAssertion(), isNull);
+  });
+
+  test('fresh reporter assertions rotate replay-resistant proof fields', () {
+    final first = HandrailReporterAssertion.fresh(
+      userIdentifier: 'user-123',
+      sessionIdentifier: 'session-123',
+      verifier: 'session-token',
+    );
+    final second = HandrailReporterAssertion.fresh(
+      userIdentifier: 'user-123',
+      sessionIdentifier: 'session-123',
+      verifier: 'session-token',
+    );
+
+    expect(first.isUsable, isTrue);
+    expect(second.isUsable, isTrue);
+    expect(first.nonce, isNot(second.nonce));
+    expect(DateTime.tryParse(first.issuedAt!), isNotNull);
   });
 }

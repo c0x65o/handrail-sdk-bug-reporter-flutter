@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 
 typedef HandrailProfileKeyProvider = Future<String?> Function();
@@ -13,25 +16,75 @@ class HandrailReporterAssertion {
     required this.userIdentifier,
     required this.sessionIdentifier,
     required this.verifier,
+    this.issuedAt,
+    this.nonce,
   });
+
+  factory HandrailReporterAssertion.fresh({
+    required String userIdentifier,
+    required String sessionIdentifier,
+    required String verifier,
+    DateTime? issuedAt,
+    String? nonce,
+  }) {
+    final random = Random.secure();
+    final generatedNonce = base64Url
+        .encode(List<int>.generate(24, (_) => random.nextInt(256)))
+        .replaceAll('=', '');
+    return HandrailReporterAssertion(
+      userIdentifier: userIdentifier,
+      sessionIdentifier: sessionIdentifier,
+      verifier: verifier,
+      issuedAt: (issuedAt ?? DateTime.now()).toUtc().toIso8601String(),
+      nonce: nonce ?? generatedNonce,
+    );
+  }
 
   final int version;
   final String userIdentifier;
   final String sessionIdentifier;
   final String verifier;
+  final String? issuedAt;
+  final String? nonce;
 
-  bool get isUsable =>
-      version == 1 &&
-      userIdentifier.trim().isNotEmpty &&
-      sessionIdentifier.trim().isNotEmpty &&
-      verifier.trim().isNotEmpty;
+  bool get isUsable {
+    final providedIssuedAt = issuedAt?.trim();
+    final providedNonce = nonce?.trim();
+    return version == 1 &&
+        userIdentifier.trim().isNotEmpty &&
+        sessionIdentifier.trim().isNotEmpty &&
+        verifier.trim().isNotEmpty &&
+        (providedIssuedAt == null ||
+            providedIssuedAt.isEmpty ||
+            DateTime.tryParse(providedIssuedAt) != null) &&
+        (providedNonce == null ||
+            providedNonce.isEmpty ||
+            RegExp(r'^[A-Za-z0-9_-]{22,200}$').hasMatch(providedNonce));
+  }
 
-  Map<String, Object?> toJson() => <String, Object?>{
-        'version': version,
-        'user_identifier': userIdentifier.trim(),
-        'session_identifier': sessionIdentifier.trim(),
-        'verifier': verifier,
-      };
+  Map<String, Object?> toJson() {
+    final providedIssuedAt = issuedAt?.trim();
+    final providedNonce = nonce?.trim();
+    final envelope = HandrailReporterAssertion.fresh(
+      userIdentifier: userIdentifier,
+      sessionIdentifier: sessionIdentifier,
+      verifier: verifier,
+      issuedAt: providedIssuedAt == null || providedIssuedAt.isEmpty
+          ? null
+          : DateTime.parse(providedIssuedAt),
+      nonce: providedNonce == null || providedNonce.isEmpty
+          ? null
+          : providedNonce,
+    );
+    return <String, Object?>{
+      'version': version,
+      'user_identifier': userIdentifier.trim(),
+      'session_identifier': sessionIdentifier.trim(),
+      'verifier': verifier,
+      'issued_at': envelope.issuedAt,
+      'nonce': envelope.nonce,
+    };
+  }
 }
 
 const String defaultHandrailBugReportApiBaseUrl =

@@ -46,6 +46,8 @@ void main() {
           userIdentifier: 'user-123',
           sessionIdentifier: 'session-123',
           verifier: 'session-token',
+          issuedAt: '2026-08-03T12:00:00.000Z',
+          nonce: 'assertion-nonce-1234567890',
         ),
       ),
       metadataProvider: _FakeMetadataProvider(),
@@ -89,6 +91,8 @@ void main() {
       'user_identifier': 'user-123',
       'session_identifier': 'session-123',
       'verifier': 'session-token',
+      'issued_at': '2026-08-03T12:00:00.000Z',
+      'nonce': 'assertion-nonce-1234567890',
     });
 
     final metadata = submittedPayload?['metadata'] as Map<String, Object?>?;
@@ -131,6 +135,8 @@ void main() {
           userIdentifier: 'user-123',
           sessionIdentifier: 'session-123',
           verifier: 'first-session-token',
+          issuedAt: '2026-08-03T12:00:00.000Z',
+          nonce: 'first-assertion-nonce-12345',
         ),
       ),
       metadataProvider: _FakeMetadataProvider(),
@@ -177,6 +183,8 @@ void main() {
           userIdentifier: 'user-123',
           sessionIdentifier: 'session-456',
           verifier: 'fresh-session-token',
+          issuedAt: '2026-08-03T12:01:00.000Z',
+          nonce: 'fresh-assertion-nonce-12345',
         ),
       ),
       metadataProvider: _FakeMetadataProvider(),

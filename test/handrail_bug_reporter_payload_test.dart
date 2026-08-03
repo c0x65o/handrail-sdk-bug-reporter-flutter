@@ -42,6 +42,8 @@ void main() {
         userIdentifier: 'user-123',
         sessionIdentifier: 'session-123',
         verifier: 'session-token',
+        issuedAt: '2026-08-03T12:00:00.000Z',
+        nonce: 'assertion-nonce-1234567890',
       ),
     );
 
@@ -65,6 +67,8 @@ void main() {
         'user_identifier': 'user-123',
         'session_identifier': 'session-123',
         'verifier': 'session-token',
+        'issued_at': '2026-08-03T12:00:00.000Z',
+        'nonce': 'assertion-nonce-1234567890',
       },
       'screenshot_base64': 'png-base64',
       'screenshot_filename': 'mobile-screenshot.png',
