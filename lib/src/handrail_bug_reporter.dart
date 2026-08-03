@@ -632,6 +632,7 @@ class _ReportSheetState extends State<_ReportSheet> {
     try {
       final profileKey = await widget.config.resolveProfileKey();
       final username = await widget.config.resolveUsername();
+      final reporterAssertion = await widget.config.resolveReporterAssertion();
       final metadata = await widget.metadataProvider.read();
       final buildMetadata = await _resolveBuildMetadata();
       final result = await client.submit(
@@ -655,6 +656,7 @@ class _ReportSheetState extends State<_ReportSheet> {
           ),
           device: metadata,
           profileKey: profileKey,
+          reporterAssertion: reporterAssertion,
           username: username,
           appVersion: buildMetadata.appVersion,
           buildNumber: buildMetadata.buildNumber,

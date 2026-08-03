@@ -42,6 +42,11 @@ void main() {
         reportToken: 'report-token',
         routeProvider: _route,
         usernameProvider: () async => ' crash-user ',
+        reporterAssertionProvider: () async => const HandrailReporterAssertion(
+          userIdentifier: 'user-123',
+          sessionIdentifier: 'session-123',
+          verifier: 'session-token',
+        ),
       ),
       metadataProvider: _FakeMetadataProvider(),
       logBuffer: logBuffer,
@@ -79,6 +84,12 @@ void main() {
     expect(submittedPayload?['route'], '/deployments');
     expect(submittedPayload?['commit_sha'], 'crash-commit');
     expect(submittedPayload?['username'], 'crash-user');
+    expect(submittedPayload?['reporter_assertion'], <String, Object?>{
+      'version': 1,
+      'user_identifier': 'user-123',
+      'session_identifier': 'session-123',
+      'verifier': 'session-token',
+    });
 
     final metadata = submittedPayload?['metadata'] as Map<String, Object?>?;
     expect(metadata?['crash_type'], 'flutter_error');
@@ -107,7 +118,7 @@ void main() {
     final retryRequests = <Map<String, Object?>>[];
 
     final reporter = HandrailCrashReporter(
-      config: const HandrailBugReporterConfig(
+      config: HandrailBugReporterConfig(
         apiBaseUrl: 'https://example.test/api',
         projectSlug: 'handrail',
         environment: 'staging',
@@ -116,6 +127,11 @@ void main() {
         buildNumber: '9',
         reportToken: 'report-token',
         routeProvider: _route,
+        reporterAssertionProvider: () async => const HandrailReporterAssertion(
+          userIdentifier: 'user-123',
+          sessionIdentifier: 'session-123',
+          verifier: 'first-session-token',
+        ),
       ),
       metadataProvider: _FakeMetadataProvider(),
       clientFactory: (config) {
@@ -139,9 +155,16 @@ void main() {
 
     expect(firstResult?.isSuccess, isFalse);
     expect(firstRequests, hasLength(1));
+    final preferences = await SharedPreferences.getInstance();
+    expect(
+      preferences
+          .getStringList('handrail_bug_reporter.pending_crash_reports.v1')
+          ?.join('\n'),
+      isNot(contains('first-session-token')),
+    );
 
     HandrailCrashReporter.install(
-      config: const HandrailBugReporterConfig(
+      config: HandrailBugReporterConfig(
         apiBaseUrl: 'https://example.test/api',
         projectSlug: 'handrail',
         environment: 'staging',
@@ -150,6 +173,11 @@ void main() {
         buildNumber: '9',
         reportToken: 'report-token',
         routeProvider: _route,
+        reporterAssertionProvider: () async => const HandrailReporterAssertion(
+          userIdentifier: 'user-123',
+          sessionIdentifier: 'session-456',
+          verifier: 'fresh-session-token',
+        ),
       ),
       metadataProvider: _FakeMetadataProvider(),
       captureFlutterErrors: false,
@@ -175,6 +203,10 @@ void main() {
     expect(retryRequests.single['source'], handrailFlutterSdkCrashSource);
     expect(retryRequests.single['description'],
         contains('reload before submit finished'));
+    expect(
+      retryRequests.single['reporter_assertion'],
+      containsPair('verifier', 'fresh-session-token'),
+    );
 
     HandrailCrashReporter.install(
       config: const HandrailBugReporterConfig(

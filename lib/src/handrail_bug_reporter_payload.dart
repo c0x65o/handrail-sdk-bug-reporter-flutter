@@ -67,6 +67,7 @@ class HandrailBugReportPayload {
     required this.description,
     required this.profileKey,
     required this.screenshotBase64,
+    this.reporterAssertion,
     this.username,
     this.deployFixedAppToStores = false,
     this.source,
@@ -85,6 +86,7 @@ class HandrailBugReportPayload {
     required HandrailBugReportDraft draft,
     required HandrailDeviceMetadata device,
     required String? profileKey,
+    HandrailReporterAssertion? reporterAssertion,
     String? username,
     String? appVersion,
     String? buildNumber,
@@ -111,6 +113,7 @@ class HandrailBugReportPayload {
       source: draft.source,
       metadata: draft.metadata,
       profileKey: profileKey,
+      reporterAssertion: reporterAssertion,
       username: _firstNonBlankNullable(username, config.username),
       screenshotBase64: draft.screenshotBase64,
       screenshotFilename: draft.screenshotFilename,
@@ -139,6 +142,7 @@ class HandrailBugReportPayload {
   final String? source;
   final Map<String, Object?> metadata;
   final String? profileKey;
+  final HandrailReporterAssertion? reporterAssertion;
   final String? username;
   final String? screenshotBase64;
   final String? screenshotFilename;
@@ -165,6 +169,8 @@ class HandrailBugReportPayload {
       'description': description,
       'severity': severity,
       'profile_key': profileKey,
+      if (reporterAssertion?.isUsable == true)
+        'reporter_assertion': reporterAssertion!.toJson(),
       'screenshot_base64': screenshotBase64,
       'screenshot_filename': screenshotFilename,
       'screenshot_mime_type': screenshotMimeType,

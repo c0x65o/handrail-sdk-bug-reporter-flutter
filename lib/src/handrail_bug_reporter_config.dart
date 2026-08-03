@@ -2,7 +2,37 @@ import 'package:flutter/foundation.dart';
 
 typedef HandrailProfileKeyProvider = Future<String?> Function();
 typedef HandrailUsernameProvider = Future<String?> Function();
+typedef HandrailReporterAssertionProvider = Future<HandrailReporterAssertion?>
+    Function();
 typedef HandrailRouteProvider = String? Function();
+
+@immutable
+class HandrailReporterAssertion {
+  const HandrailReporterAssertion({
+    this.version = 1,
+    required this.userIdentifier,
+    required this.sessionIdentifier,
+    required this.verifier,
+  });
+
+  final int version;
+  final String userIdentifier;
+  final String sessionIdentifier;
+  final String verifier;
+
+  bool get isUsable =>
+      version == 1 &&
+      userIdentifier.trim().isNotEmpty &&
+      sessionIdentifier.trim().isNotEmpty &&
+      verifier.trim().isNotEmpty;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'version': version,
+        'user_identifier': userIdentifier.trim(),
+        'session_identifier': sessionIdentifier.trim(),
+        'verifier': verifier,
+      };
+}
 
 const String defaultHandrailBugReportApiBaseUrl =
     'https://dashboard.handrail-daas.com/api';
@@ -48,6 +78,7 @@ class HandrailBugReporterConfig {
     this.username,
     this.usernameProvider,
     this.profileKeyProvider,
+    this.reporterAssertionProvider,
     this.routeProvider,
   });
 
@@ -82,6 +113,7 @@ class HandrailBugReporterConfig {
   final String? username;
   final HandrailUsernameProvider? usernameProvider;
   final HandrailProfileKeyProvider? profileKeyProvider;
+  final HandrailReporterAssertionProvider? reporterAssertionProvider;
   final HandrailRouteProvider? routeProvider;
 
   bool get isProduction => environment.trim().toLowerCase() == 'production';
@@ -145,5 +177,10 @@ class HandrailBugReporterConfig {
     return trimmedUsername == null || trimmedUsername.isEmpty
         ? null
         : trimmedUsername;
+  }
+
+  Future<HandrailReporterAssertion?> resolveReporterAssertion() async {
+    final assertion = await reporterAssertionProvider?.call();
+    return assertion?.isUsable == true ? assertion : null;
   }
 }

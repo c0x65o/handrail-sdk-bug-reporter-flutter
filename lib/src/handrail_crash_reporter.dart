@@ -218,6 +218,7 @@ class HandrailCrashReporter {
       crashMetadata: crashMetadata,
       device: _fallbackDeviceMetadata(),
       profileKey: null,
+      reporterAssertion: null,
       username: config.username,
       appVersion: config.appVersion,
       buildNumber: config.buildNumber,
@@ -238,6 +239,7 @@ class HandrailCrashReporter {
     final buildMetadata = await HandrailAppBuildMetadata.fromConfig(config);
     final profileKey = await config.resolveProfileKey();
     final username = await config.resolveUsername();
+    final reporterAssertion = await config.resolveReporterAssertion();
     final payload = _buildCrashPayload(
       error: error,
       stackTrace: stackTrace,
@@ -247,15 +249,18 @@ class HandrailCrashReporter {
       crashMetadata: crashMetadata,
       device: device,
       profileKey: profileKey,
+      reporterAssertion: reporterAssertion,
       username: username,
       appVersion: buildMetadata.appVersion,
       buildNumber: buildMetadata.buildNumber,
       commitSha: buildMetadata.commitSha,
     );
     final payloadJson = payload.toJson();
+    final persistedPayloadJson = Map<String, Object?>.from(payloadJson)
+      ..remove('reporter_assertion');
     final pendingId = await pendingIdFuture;
     if (pendingId != null) {
-      await _replacePendingCrashReport(pendingId, payloadJson);
+      await _replacePendingCrashReport(pendingId, persistedPayloadJson);
     }
     final client = clientFactory(config);
     try {
@@ -278,6 +283,7 @@ class HandrailCrashReporter {
     required Map<String, Object?> crashMetadata,
     required HandrailDeviceMetadata device,
     required String? profileKey,
+    required HandrailReporterAssertion? reporterAssertion,
     required String? username,
     required String appVersion,
     required String buildNumber,
@@ -299,6 +305,7 @@ class HandrailCrashReporter {
       ),
       device: device,
       profileKey: profileKey,
+      reporterAssertion: reporterAssertion,
       username: username,
       appVersion: appVersion,
       buildNumber: buildNumber,
@@ -378,7 +385,12 @@ class HandrailCrashReporter {
 
       final client = clientFactory(config);
       try {
-        final result = await client.submitJson(payload);
+        final payloadToSubmit = Map<String, Object?>.from(payload);
+        final reporterAssertion = await config.resolveReporterAssertion();
+        if (reporterAssertion != null) {
+          payloadToSubmit['reporter_assertion'] = reporterAssertion.toJson();
+        }
+        final result = await client.submitJson(payloadToSubmit);
         if (!result.isSuccess) return;
         await _removePendingCrashReport(id);
       } catch (_) {

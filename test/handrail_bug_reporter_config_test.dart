@@ -122,4 +122,45 @@ void main() {
     expect(await providerConfig.resolveUsername(), 'current-user');
     expect(await fallbackConfig.resolveUsername(), 'fallback-user');
   });
+
+  test(
+      'reporter assertion provider accepts only the supported complete version',
+      () async {
+    final valid = HandrailBugReporterConfig(
+      projectId: 'project-123',
+      environment: 'dev',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+      reporterAssertionProvider: () async => const HandrailReporterAssertion(
+        userIdentifier: 'user-123',
+        sessionIdentifier: 'session-123',
+        verifier: 'session-token',
+      ),
+    );
+    final unsupported = HandrailBugReporterConfig(
+      projectId: 'project-123',
+      environment: 'dev',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+      reporterAssertionProvider: () async => const HandrailReporterAssertion(
+        version: 2,
+        userIdentifier: 'user-123',
+        sessionIdentifier: 'session-123',
+        verifier: 'session-token',
+      ),
+    );
+
+    expect(
+      (await valid.resolveReporterAssertion())?.toJson(),
+      <String, Object?>{
+        'version': 1,
+        'user_identifier': 'user-123',
+        'session_identifier': 'session-123',
+        'verifier': 'session-token',
+      },
+    );
+    expect(await unsupported.resolveReporterAssertion(), isNull);
+  });
 }

@@ -38,6 +38,11 @@ void main() {
         osVersion: 'iOS 18.1',
       ),
       profileKey: 'profile-key',
+      reporterAssertion: const HandrailReporterAssertion(
+        userIdentifier: 'user-123',
+        sessionIdentifier: 'session-123',
+        verifier: 'session-token',
+      ),
     );
 
     expect(payload.toJson(), <String, Object?>{
@@ -55,6 +60,12 @@ void main() {
       'description': 'The checkout screen locks after tapping submit.',
       'severity': 'sev3',
       'profile_key': 'profile-key',
+      'reporter_assertion': <String, Object?>{
+        'version': 1,
+        'user_identifier': 'user-123',
+        'session_identifier': 'session-123',
+        'verifier': 'session-token',
+      },
       'screenshot_base64': 'png-base64',
       'screenshot_filename': 'mobile-screenshot.png',
       'screenshot_mime_type': 'image/png',
