@@ -162,11 +162,17 @@ void main() {
     expect(firstResult?.isSuccess, isFalse);
     expect(firstRequests, hasLength(1));
     final preferences = await SharedPreferences.getInstance();
+    final persistedCrashEvidence = preferences
+        .getStringList('handrail_bug_reporter.pending_crash_reports.v1')
+        ?.join('\n');
+    expect(persistedCrashEvidence, isNotNull);
+    expect(persistedCrashEvidence, isNot(contains('reporter_assertion')));
+    expect(persistedCrashEvidence, isNot(contains('user-123')));
+    expect(persistedCrashEvidence, isNot(contains('session-123')));
+    expect(persistedCrashEvidence, isNot(contains('first-session-token')));
     expect(
-      preferences
-          .getStringList('handrail_bug_reporter.pending_crash_reports.v1')
-          ?.join('\n'),
-      isNot(contains('first-session-token')),
+      persistedCrashEvidence,
+      isNot(contains('first-assertion-nonce-12345')),
     );
 
     HandrailCrashReporter.install(

@@ -191,6 +191,44 @@ void main() {
     );
   });
 
+  test('payload omits unsupported and incomplete reporter assertions', () {
+    const config = HandrailBugReporterConfig(
+      projectId: 'project-123',
+      environment: 'dev',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+    );
+    const assertions = <HandrailReporterAssertion>[
+      HandrailReporterAssertion(
+        version: 2,
+        userIdentifier: 'user-123',
+        sessionIdentifier: 'session-123',
+        verifier: 'session-token',
+      ),
+      HandrailReporterAssertion(
+        userIdentifier: 'user-123',
+        sessionIdentifier: '',
+        verifier: 'session-token',
+      ),
+    ];
+
+    for (final assertion in assertions) {
+      final payload = HandrailBugReportPayload.fromConfig(
+        config: config,
+        draft: const HandrailBugReportDraft(
+          title: 'Checkout freezes',
+          description: 'The checkout screen locks after tapping submit.',
+        ),
+        device: const HandrailDeviceMetadata(platform: 'ios'),
+        profileKey: null,
+        reporterAssertion: assertion,
+      );
+
+      expect(payload.toJson(), isNot(contains('reporter_assertion')));
+    }
+  });
+
   test('payload construction prefers resolved bundle version metadata', () {
     const config = HandrailBugReporterConfig(
       apiBaseUrl: 'https://example.test/api',

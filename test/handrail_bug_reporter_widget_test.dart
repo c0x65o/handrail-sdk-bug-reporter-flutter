@@ -157,6 +157,9 @@ void main() {
 
     Map<String, Object?>? submittedPayload;
     http.Request? submittedRequest;
+    var assertionProviderCalls = 0;
+    var currentSessionIdentifier = 'session-before-open';
+    var currentSessionVerifier = 'verifier-before-open';
 
     await tester.pumpWidget(
       MaterialApp(
@@ -173,6 +176,14 @@ void main() {
             commitSha: ' widget-commit-sha ',
             reportToken: 'report-token',
             usernameProvider: () async => ' widget-user ',
+            reporterAssertionProvider: () async {
+              assertionProviderCalls += 1;
+              return HandrailReporterAssertion.fresh(
+                userIdentifier: 'stable-user-123',
+                sessionIdentifier: currentSessionIdentifier,
+                verifier: currentSessionVerifier,
+              );
+            },
           ),
           metadataProvider: _FakeMetadataProvider(),
           clientFactory: (config) {
@@ -223,6 +234,8 @@ void main() {
       'The dark mode report sheet looks wrong.',
     );
     await tester.pump();
+    currentSessionIdentifier = 'session-at-send';
+    currentSessionVerifier = 'verifier-at-send';
     final sendButton = find.widgetWithText(FilledButton, 'Send');
     await tester.ensureVisible(sendButton);
     await tester.pump(const Duration(milliseconds: 300));
@@ -239,6 +252,18 @@ void main() {
     expect(submittedPayload?['build_number'], '1');
     expect(submittedPayload?['commit_sha'], 'widget-commit-sha');
     expect(submittedPayload?['username'], 'widget-user');
+    expect(assertionProviderCalls, 1);
+    expect(
+      submittedPayload?['reporter_assertion'],
+      allOf(
+        containsPair('version', 1),
+        containsPair('user_identifier', 'stable-user-123'),
+        containsPair('session_identifier', 'session-at-send'),
+        containsPair('verifier', 'verifier-at-send'),
+        contains('issued_at'),
+        contains('nonce'),
+      ),
+    );
     expect(
       submittedPayload?['reporter_sdk_version'],
       HandrailBugReporterSdkMetadata.version,

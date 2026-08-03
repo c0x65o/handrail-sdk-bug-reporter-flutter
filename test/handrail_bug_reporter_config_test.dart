@@ -155,6 +155,18 @@ void main() {
         nonce: 'assertion-nonce-1234567890',
       ),
     );
+    final incomplete = HandrailBugReporterConfig(
+      projectId: 'project-123',
+      environment: 'dev',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+      reporterAssertionProvider: () async => const HandrailReporterAssertion(
+        userIdentifier: 'user-123',
+        sessionIdentifier: '',
+        verifier: 'session-token',
+      ),
+    );
 
     expect(
       (await valid.resolveReporterAssertion())?.toJson(),
@@ -168,6 +180,7 @@ void main() {
       },
     );
     expect(await unsupported.resolveReporterAssertion(), isNull);
+    expect(await incomplete.resolveReporterAssertion(), isNull);
   });
 
   test('fresh reporter assertions rotate replay-resistant proof fields', () {
