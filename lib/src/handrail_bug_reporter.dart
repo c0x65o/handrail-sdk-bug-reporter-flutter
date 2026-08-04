@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 import 'handrail_app_build_metadata.dart';
+import 'handrail_bug_automation_policy.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_payload.dart';
 import 'handrail_bug_reporter_sdk_metadata.dart';
@@ -552,7 +553,9 @@ class _ReportSheetState extends State<_ReportSheet> {
   final _descriptionController = TextEditingController();
   String _severity = _bugReportSeverityMedium;
   late bool _includeScreenshot;
-  bool _deployFixedAppToStores = false;
+  final Set<HandrailBugAutomationOption> _automationRequests = {};
+  HandrailBugAutomationPolicy? _automationPolicy;
+  bool _automationPolicyLoading = true;
   late bool _shakeReportingEnabled;
   HandrailAppBuildMetadata? _buildMetadata;
   bool _showReportForm = false;
@@ -574,6 +577,7 @@ class _ReportSheetState extends State<_ReportSheet> {
     _shakeReportingEnabled = widget.shakeReportingEnabled;
     _descriptionController.addListener(_handleDescriptionChanged);
     unawaited(_loadBuildMetadata());
+    unawaited(_loadAutomationPolicy());
   }
 
   @override
@@ -612,6 +616,39 @@ class _ReportSheetState extends State<_ReportSheet> {
       });
     }
     return metadata;
+  }
+
+  Future<void> _loadAutomationPolicy() async {
+    final client = widget.clientFactory?.call(widget.config) ??
+        HandrailBugReportClient(
+          apiBaseUrl: widget.config.apiBaseUrl,
+          reportToken: widget.config.reportToken,
+          endpointPath: widget.config.endpointPath,
+        );
+    try {
+      final sessionToken = await widget.config.resolveApplicationSessionToken();
+      final policy = await client.loadPolicy(
+        projectId: widget.config.projectId,
+        projectSlug: widget.config.projectSlug,
+        environment: widget.config.environment,
+        applicationSessionToken: sessionToken,
+      );
+      if (!mounted) return;
+      setState(() {
+        _automationPolicy = policy;
+        _automationPolicyLoading = false;
+        _automationRequests.removeWhere(
+          (option) => policy?.askOptions.contains(option) != true,
+        );
+      });
+    } catch (_) {
+      // Policy discovery must never block vanilla bug reporting.
+    } finally {
+      client.close();
+      if (mounted && _automationPolicyLoading) {
+        setState(() => _automationPolicyLoading = false);
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -654,7 +691,9 @@ class _ReportSheetState extends State<_ReportSheet> {
                 ? widget.screenshotFailureReason
                 : null,
             appBrightness: widget.appBrightness.name,
-            deployFixedAppToStores: _deployFixedAppToStores,
+            automationRequests: Set<HandrailBugAutomationOption>.of(
+              _automationRequests,
+            ),
           ),
           device: metadata,
           profileKey: profileKey,
@@ -927,35 +966,58 @@ class _ReportSheetState extends State<_ReportSheet> {
                           height: 1.25,
                         ),
                   ),
-                  if (widget.config.environment.trim().toLowerCase() ==
-                      'staging') ...[
+                  if (_automationPolicyLoading) ...[
                     const SizedBox(height: 24),
                     Divider(height: 1, color: colors.divider),
                     const SizedBox(height: 22),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Deploy fixed app to TestFlight and Google Play',
+                    Text(
+                      'Loading optional actions…',
+                      style: TextStyle(color: colors.onSurfaceMuted),
+                    ),
+                  ] else if (_automationPolicy?.askOptions.isNotEmpty ==
+                      true) ...[
+                    const SizedBox(height: 24),
+                    Divider(height: 1, color: colors.divider),
+                    const SizedBox(height: 22),
+                    Text(
+                      'Optional Handrail actions',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: colors.onSurface,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Handrail will still apply project risk and deployment safety rules.',
+                      style: TextStyle(color: colors.onSurfaceMuted),
+                    ),
+                    const SizedBox(height: 10),
+                    for (final option in HandrailBugAutomationOption.values)
+                      if (_automationPolicy!.askOptions.contains(option))
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.trailing,
+                          title: Text(
+                            option.label,
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w500,
                               color: colors.onSurface,
                             ),
                           ),
-                        ),
-                        Checkbox(
-                          value: _deployFixedAppToStores,
+                          value: _automationRequests.contains(option),
                           onChanged: submitting
                               ? null
-                              : (value) {
+                              : (selected) {
                                   setState(() {
-                                    _deployFixedAppToStores = value ?? false;
+                                    if (selected == true) {
+                                      _automationRequests.add(option);
+                                    } else {
+                                      _automationRequests.remove(option);
+                                    }
                                   });
                                 },
                         ),
-                      ],
-                    ),
                   ],
                   if (widget.screenshotBase64 != null) ...[
                     const SizedBox(height: 24),

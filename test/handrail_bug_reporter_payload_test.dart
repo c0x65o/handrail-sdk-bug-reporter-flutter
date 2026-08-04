@@ -153,6 +153,38 @@ void main() {
     expect(payload.toJson(), isNot(contains('username')));
   });
 
+  test('payload includes only selected policy Ask options', () {
+    const payload = HandrailBugReportPayload(
+      projectId: 'project-123',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      commitSha: null,
+      platform: 'ios',
+      deviceModel: null,
+      osVersion: null,
+      route: null,
+      appBrightness: null,
+      title: 'Checkout freezes',
+      description: 'The checkout screen locks.',
+      profileKey: null,
+      screenshotBase64: null,
+      automationRequests: <HandrailBugAutomationOption>{
+        HandrailBugAutomationOption.autoVerify,
+        HandrailBugAutomationOption.deployStaging,
+      },
+    );
+
+    expect(
+      payload.toJson()['automation_requests'],
+      <String, Object?>{
+        'auto_verify': true,
+        'deploy_staging': true,
+      },
+    );
+  });
+
   test('payload can carry SDK source and structured metadata', () {
     const payload = HandrailBugReportPayload(
       projectSlug: 'handrail',

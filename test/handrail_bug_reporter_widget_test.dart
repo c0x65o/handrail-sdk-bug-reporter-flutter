@@ -279,7 +279,7 @@ void main() {
   });
 
   testWidgets(
-      'staging report can request fixed app delivery to both mobile stores',
+      'policy Ask controls render without risk labels and submit selections',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
@@ -296,6 +296,34 @@ void main() {
             apiBaseUrl: config.apiBaseUrl,
             reportToken: config.reportToken,
             httpClient: MockClient((request) async {
+              if (request.method == 'GET') {
+                return http.Response(
+                  jsonEncode(<String, Object?>{
+                    'schema_version': 1,
+                    'project_id': 'project-123',
+                    'environment': 'staging',
+                    'reporter': <String, Object?>{
+                      'identity_verified': true,
+                      'access_level': 'user',
+                    },
+                    'ask_options': <Object?>[
+                      <String, Object?>{
+                        'key': 'fix',
+                        'label': 'Fix this issue',
+                      },
+                      <String, Object?>{
+                        'key': 'deploy_staging',
+                        'label': 'Deploy the fix to staging',
+                      },
+                      <String, Object?>{
+                        'key': 'deploy_production',
+                        'label': 'Deploy the fix to production',
+                      },
+                    ],
+                  }),
+                  200,
+                );
+              }
               submittedPayload =
                   jsonDecode(request.body) as Map<String, Object?>;
               return http.Response('{"ok":true}', 201);
@@ -320,11 +348,16 @@ void main() {
     await tester.tap(find.text('Report bug'));
     await tester.pumpAndSettle();
 
-    final storeOption =
-        find.text('Deploy fixed app to TestFlight and Google Play');
-    expect(storeOption, findsOneWidget);
-    await tester.ensureVisible(storeOption);
-    await tester.tap(find.byType(Checkbox));
+    final stagingOption = find.text('Deploy the fix to staging');
+    final productionOption = find.text('Deploy the fix to production');
+    expect(stagingOption, findsOneWidget);
+    expect(productionOption, findsOneWidget);
+    expect(find.textContaining('low risk'), findsNothing);
+    expect(find.textContaining('medium risk'), findsNothing);
+    await tester.ensureVisible(stagingOption);
+    await tester.tap(stagingOption);
+    await tester.ensureVisible(productionOption);
+    await tester.tap(productionOption);
     await tester.enterText(
       find.byType(TextFormField),
       'The staging app still shows the broken behavior.',
@@ -339,10 +372,16 @@ void main() {
     }
 
     expect(submittedPayload?['environment'], 'staging');
-    expect(submittedPayload?['deploy_fixed_app_to_stores'], isTrue);
+    expect(
+      submittedPayload?['automation_requests'],
+      <String, Object?>{
+        'deploy_staging': true,
+        'deploy_production': true,
+      },
+    );
   });
 
-  testWidgets('mobile store deploy option is hidden outside staging',
+  testWidgets('automation options stay hidden when policy has no Ask controls',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -353,6 +392,23 @@ void main() {
             appVersion: '1.2.3',
             buildNumber: '42',
             reportToken: 'report-token',
+          ),
+          clientFactory: (config) => HandrailBugReportClient(
+            apiBaseUrl: config.apiBaseUrl,
+            reportToken: config.reportToken,
+            httpClient: MockClient((request) async => http.Response(
+                  jsonEncode(<String, Object?>{
+                    'schema_version': 1,
+                    'project_id': 'project-123',
+                    'environment': 'production',
+                    'reporter': <String, Object?>{
+                      'identity_verified': false,
+                      'access_level': 'default',
+                    },
+                    'ask_options': const <Object?>[],
+                  }),
+                  200,
+                )),
           ),
           child: Builder(
             builder: (context) => Scaffold(
@@ -374,7 +430,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Deploy fixed app to TestFlight and Google Play'),
+      find.text('Optional Handrail actions'),
       findsNothing,
     );
   });

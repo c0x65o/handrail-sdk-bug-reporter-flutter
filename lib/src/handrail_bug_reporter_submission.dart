@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'handrail_bug_automation_policy.dart';
 import 'handrail_bug_reporter_payload.dart';
 
 enum HandrailBugReportSubmissionStatus {
@@ -58,6 +59,40 @@ class HandrailBugReportClient {
         endpointPath: _endpointPath,
       );
 
+  Future<HandrailBugAutomationPolicy?> loadPolicy({
+    required String projectId,
+    String? projectSlug,
+    required String environment,
+    String? applicationSessionToken,
+  }) async {
+    final normalizedProjectId = projectId.trim();
+    final normalizedProjectSlug = projectSlug?.trim() ?? '';
+    final query = <String, String>{
+      'environment': environment.trim(),
+      if (normalizedProjectId.isNotEmpty) 'project_id': normalizedProjectId,
+      if (normalizedProjectId.isEmpty && normalizedProjectSlug.isNotEmpty)
+        'project_slug': normalizedProjectSlug,
+    };
+    try {
+      final response = await _httpClient.get(
+        endpoint.replace(
+          path: '${endpoint.path.replaceFirst(RegExp(r'/+$'), '')}/policy',
+          queryParameters: query,
+        ),
+        headers: _headers(applicationSessionToken: applicationSessionToken),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) return null;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return null;
+      return HandrailBugAutomationPolicy.fromJson(
+        Map<String, Object?>.from(decoded),
+      );
+    } catch (_) {
+      // Policy discovery is best-effort. Vanilla bug reporting remains usable.
+      return null;
+    }
+  }
+
   Future<HandrailBugReportSubmissionResult> submit(
       HandrailBugReportPayload payload,
       {String? applicationSessionToken}) {
@@ -73,14 +108,7 @@ class HandrailBugReportClient {
     try {
       final response = await _httpClient.post(
         endpoint,
-        headers: <String, String>{
-          'content-type': 'application/json',
-          if (_useBearerToken) 'authorization': 'Bearer $_reportToken',
-          if (!_useBearerToken) 'x-handrail-bug-report-token': _reportToken,
-          if (applicationSessionToken?.trim().isNotEmpty == true)
-            'x-handrail-application-session-token':
-                applicationSessionToken!.trim(),
-        },
+        headers: _headers(applicationSessionToken: applicationSessionToken),
         body: jsonEncode(payload),
       );
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -102,6 +130,16 @@ class HandrailBugReportClient {
         errorMessage: error.toString(),
       );
     }
+  }
+
+  Map<String, String> _headers({String? applicationSessionToken}) {
+    return <String, String>{
+      'content-type': 'application/json',
+      if (_useBearerToken) 'authorization': 'Bearer $_reportToken',
+      if (!_useBearerToken) 'x-handrail-bug-report-token': _reportToken,
+      if (applicationSessionToken?.trim().isNotEmpty == true)
+        'x-handrail-application-session-token': applicationSessionToken!.trim(),
+    };
   }
 
   void close() {

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import 'handrail_bug_automation_policy.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_sdk_metadata.dart';
 
@@ -32,6 +33,7 @@ class HandrailBugReportDraft {
     this.screenshotCaptureError,
     this.appBrightness,
     this.deployFixedAppToStores = false,
+    this.automationRequests = const <HandrailBugAutomationOption>{},
   });
 
   final String title;
@@ -45,6 +47,7 @@ class HandrailBugReportDraft {
   final String? screenshotCaptureError;
   final String? appBrightness;
   final bool deployFixedAppToStores;
+  final Set<HandrailBugAutomationOption> automationRequests;
 }
 
 @immutable
@@ -70,6 +73,7 @@ class HandrailBugReportPayload {
     this.reporterAssertion,
     this.username,
     this.deployFixedAppToStores = false,
+    this.automationRequests = const <HandrailBugAutomationOption>{},
     this.source,
     this.metadata = const <String, Object?>{},
     this.severity,
@@ -120,6 +124,7 @@ class HandrailBugReportPayload {
       screenshotMimeType: draft.screenshotMimeType,
       screenshotCaptureError: draft.screenshotCaptureError,
       deployFixedAppToStores: draft.deployFixedAppToStores,
+      automationRequests: draft.automationRequests,
     );
   }
 
@@ -149,6 +154,7 @@ class HandrailBugReportPayload {
   final String? screenshotMimeType;
   final String? screenshotCaptureError;
   final bool deployFixedAppToStores;
+  final Set<HandrailBugAutomationOption> automationRequests;
   final String reporterSdkVersion;
   final String? reporterSdkCommit;
   final String reporterSdkRef;
@@ -176,6 +182,10 @@ class HandrailBugReportPayload {
       'screenshot_mime_type': screenshotMimeType,
       'screenshot_capture_error': screenshotCaptureError,
       'deploy_fixed_app_to_stores': deployFixedAppToStores,
+      if (automationRequests.isNotEmpty)
+        'automation_requests': <String, Object?>{
+          for (final option in automationRequests) option.key: true,
+        },
       'reporter_sdk_version': reporterSdkVersion,
       'reporter_sdk_commit': reporterSdkCommit,
       'reporter_sdk_ref': reporterSdkRef,

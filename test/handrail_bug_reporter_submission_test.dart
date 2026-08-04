@@ -89,6 +89,60 @@ void main() {
     expect(captured.body, isNot(contains('current-session-token')));
   });
 
+  test('policy discovery reuses report and application session headers',
+      () async {
+    late http.Request captured;
+    final client = HandrailBugReportClient(
+      apiBaseUrl: 'https://example.test/api',
+      reportToken: 'report-token',
+      httpClient: MockClient((request) async {
+        captured = request;
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'schema_version': 1,
+            'project_id': 'project-123',
+            'environment': 'staging',
+            'reporter': <String, Object?>{
+              'identity_verified': true,
+              'access_level': 'full_access',
+            },
+            'ask_options': <Object?>[
+              <String, Object?>{
+                'key': 'deploy_production',
+                'label': 'Deploy the fix to production',
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final policy = await client.loadPolicy(
+      projectId: 'project-123',
+      environment: 'staging',
+      applicationSessionToken: 'current-session-token',
+    );
+
+    expect(captured.method, 'GET');
+    expect(
+      captured.url.toString(),
+      'https://example.test/api/mobile-bug-reports/policy?environment=staging&project_id=project-123',
+    );
+    expect(captured.headers['authorization'], 'Bearer report-token');
+    expect(
+      captured.headers['x-handrail-application-session-token'],
+      'current-session-token',
+    );
+    expect(policy?.accessLevel, 'full_access');
+    expect(
+      policy?.askOptions,
+      <HandrailBugAutomationOption>{
+        HandrailBugAutomationOption.deployProduction,
+      },
+    );
+  });
+
   test('submission honors configured endpoint path override', () async {
     late http.Request captured;
     final client = HandrailBugReportClient(

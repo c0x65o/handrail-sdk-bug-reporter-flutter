@@ -24,7 +24,10 @@ Use `release/0.1` as the moving minor release channel for apps that should recei
 
 ## Release note
 
-The intended patch release for the severity label, same-origin Mobile Preview submission, and web screenshot fallback fixes is `v0.1.26` on `release/0.1`. Apps should keep the dependency ref on `release/0.1`; the app lockfile records the exact commit that was pulled. To intentionally pull future approved `0.1.x` updates, run:
+The reporter-policy discovery and optional automation controls are included in
+`v0.1.50`. Apps should keep the dependency ref on `release/0.1`; the app
+lockfile records the exact commit that was pulled. To intentionally pull future
+approved `0.1.x` updates, run:
 
 ```sh
 flutter pub upgrade handrail_bug_reporter
@@ -81,8 +84,26 @@ Handrail hashes the token, verifies it against the project/environment-scoped
 Known Users session mapping, and derives the stable application user ID from
 the session row. The client does not submit a trusted user ID. Missing,
 expired, revoked, ambiguous, or invalid sessions leave attribution unverified.
-Authentication supplies attribution only and does not grant repair or
-deployment authority.
+Authentication selects the reporter's Default, User, or Full Access policy
+column but does not grant repair or deployment authority by itself.
+
+### Optional automation controls
+
+When the report sheet opens, the SDK calls
+`GET /api/mobile-bug-reports/policy` with the same report-token and current
+application-session headers used for submission. Handrail resolves the current
+reporter server-side and returns only that reporter's access tier and available
+`Ask` controls; the SDK never downloads the Known Users directory.
+
+The form renders returned controls such as Verify, Repair proposal, Fix, Deploy
+to staging, and Deploy to production as optional checkboxes. It intentionally
+does not display low/medium/high risk choices. Selected controls are submitted
+under `automation_requests`; Handrail reclassifies the report and applies the
+exact risk row plus the existing workflow and deployment safety gates.
+
+Policy discovery is best-effort. If it is unavailable or returns no `Ask`
+controls, ordinary bug reporting remains available and no automation options
+are shown.
 
 Never copy the raw session token into static reporter config, browser storage,
 preferences, local databases, files, logs, analytics, breadcrumbs, crash
