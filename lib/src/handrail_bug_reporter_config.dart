@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 typedef HandrailProfileKeyProvider = Future<String?> Function();
 typedef HandrailUsernameProvider = Future<String?> Function();
+typedef HandrailApplicationSessionTokenProvider = Future<String?> Function();
 typedef HandrailReporterAssertionProvider = Future<HandrailReporterAssertion?>
     Function();
 typedef HandrailRouteProvider = String? Function();
@@ -72,9 +73,8 @@ class HandrailReporterAssertion {
       issuedAt: providedIssuedAt == null || providedIssuedAt.isEmpty
           ? null
           : DateTime.parse(providedIssuedAt),
-      nonce: providedNonce == null || providedNonce.isEmpty
-          ? null
-          : providedNonce,
+      nonce:
+          providedNonce == null || providedNonce.isEmpty ? null : providedNonce,
     );
     return <String, Object?>{
       'version': version,
@@ -131,6 +131,7 @@ class HandrailBugReporterConfig {
     this.username,
     this.usernameProvider,
     this.profileKeyProvider,
+    this.applicationSessionTokenProvider,
     this.reporterAssertionProvider,
     this.routeProvider,
   });
@@ -166,6 +167,12 @@ class HandrailBugReporterConfig {
   final String? username;
   final HandrailUsernameProvider? usernameProvider;
   final HandrailProfileKeyProvider? profileKeyProvider;
+  final HandrailApplicationSessionTokenProvider?
+      applicationSessionTokenProvider;
+  @Deprecated(
+    'Use applicationSessionTokenProvider. Handrail derives identity from the '
+    'server-verified session and ignores claimed user IDs.',
+  )
   final HandrailReporterAssertionProvider? reporterAssertionProvider;
   final HandrailRouteProvider? routeProvider;
 
@@ -230,6 +237,12 @@ class HandrailBugReporterConfig {
     return trimmedUsername == null || trimmedUsername.isEmpty
         ? null
         : trimmedUsername;
+  }
+
+  Future<String?> resolveApplicationSessionToken() async {
+    final token = await applicationSessionTokenProvider?.call();
+    final trimmed = token?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 
   Future<HandrailReporterAssertion?> resolveReporterAssertion() async {

@@ -64,6 +64,31 @@ void main() {
     expect(captured.headers.containsKey('authorization'), isFalse);
   });
 
+  test('submission sends current application session proof only as a header',
+      () async {
+    late http.Request captured;
+    final client = HandrailBugReportClient(
+      apiBaseUrl: 'https://example.test/api',
+      reportToken: 'report-token',
+      httpClient: MockClient((request) async {
+        captured = request;
+        return http.Response('', 201);
+      }),
+    );
+
+    final result = await client.submit(
+      payload,
+      applicationSessionToken: 'current-session-token',
+    );
+
+    expect(result.isSuccess, isTrue);
+    expect(
+      captured.headers['x-handrail-application-session-token'],
+      'current-session-token',
+    );
+    expect(captured.body, isNot(contains('current-session-token')));
+  });
+
   test('submission honors configured endpoint path override', () async {
     late http.Request captured;
     final client = HandrailBugReportClient(

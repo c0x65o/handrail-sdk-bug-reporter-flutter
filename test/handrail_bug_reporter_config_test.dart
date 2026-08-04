@@ -200,4 +200,21 @@ void main() {
     expect(first.nonce, isNot(second.nonce));
     expect(DateTime.tryParse(first.issuedAt!), isNotNull);
   });
+
+  test('application session token provider resolves current transport proof',
+      () async {
+    final config = HandrailBugReporterConfig(
+      projectId: 'project-123',
+      environment: 'dev',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+      applicationSessionTokenProvider: () async => ' current-session ',
+    );
+
+    expect(
+      await config.resolveApplicationSessionToken(),
+      'current-session',
+    );
+  });
 }

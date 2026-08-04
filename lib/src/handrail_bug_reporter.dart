@@ -632,6 +632,8 @@ class _ReportSheetState extends State<_ReportSheet> {
     try {
       final profileKey = await widget.config.resolveProfileKey();
       final username = await widget.config.resolveUsername();
+      final applicationSessionToken =
+          await widget.config.resolveApplicationSessionToken();
       final reporterAssertion = await widget.config.resolveReporterAssertion();
       final metadata = await widget.metadataProvider.read();
       final buildMetadata = await _resolveBuildMetadata();
@@ -662,6 +664,7 @@ class _ReportSheetState extends State<_ReportSheet> {
           buildNumber: buildMetadata.buildNumber,
           commitSha: buildMetadata.commitSha,
         ),
+        applicationSessionToken: applicationSessionToken,
       );
       if (!mounted) {
         return;

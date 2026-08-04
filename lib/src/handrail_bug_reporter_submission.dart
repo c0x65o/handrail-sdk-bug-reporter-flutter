@@ -59,14 +59,17 @@ class HandrailBugReportClient {
       );
 
   Future<HandrailBugReportSubmissionResult> submit(
-    HandrailBugReportPayload payload,
-  ) {
-    return submitJson(payload.toJson());
+      HandrailBugReportPayload payload,
+      {String? applicationSessionToken}) {
+    return submitJson(
+      payload.toJson(),
+      applicationSessionToken: applicationSessionToken,
+    );
   }
 
   Future<HandrailBugReportSubmissionResult> submitJson(
-    Map<String, Object?> payload,
-  ) async {
+      Map<String, Object?> payload,
+      {String? applicationSessionToken}) async {
     try {
       final response = await _httpClient.post(
         endpoint,
@@ -74,6 +77,9 @@ class HandrailBugReportClient {
           'content-type': 'application/json',
           if (_useBearerToken) 'authorization': 'Bearer $_reportToken',
           if (!_useBearerToken) 'x-handrail-bug-report-token': _reportToken,
+          if (applicationSessionToken?.trim().isNotEmpty == true)
+            'x-handrail-application-session-token':
+                applicationSessionToken!.trim(),
         },
         body: jsonEncode(payload),
       );

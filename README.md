@@ -55,18 +55,8 @@ HandrailBugReporterConfig(
   buildNumber: buildNumber,
   reportToken: const String.fromEnvironment('HANDRAIL_BUG_REPORT_TOKEN'),
   usernameProvider: () async => appAuth.currentUser?.displayName,
-  reporterAssertionProvider: () async {
-    // Read the current user and session from the app's authenticated context.
-    // Do not cache this result in the reporter configuration.
-    final session = await appAuth.currentSessionForBugReporting();
-    if (session == null || !session.isAuthenticated) return null;
-
-    return HandrailReporterAssertion.fresh(
-      userIdentifier: session.stableUserId,
-      sessionIdentifier: session.sessionId,
-      verifier: session.verifier,
-    );
-  },
+  applicationSessionTokenProvider: () async =>
+      appAuth.currentSession?.rawToken,
 );
 ```
 
@@ -78,65 +68,35 @@ over the fixed `username` value. These fields are display-only compatibility
 metadata. A username, profile key, or public report token does not authenticate
 the reporter and grants no workflow, repair, deployment, or policy authority.
 
-### Authenticated reporter assertions
+### Authenticated reporter attribution
 
-`reporterAssertionProvider` is an optional asynchronous callback for apps that
-bind a Handrail reporter profile to an authenticated application user. Resolve
-the stable application user ID, current session ID, and verifier through the
-application's existing authenticated session layer. The verifier is an
-application session proof accepted by the identity source configured in
-Handrail; it is not a Handrail administrator, API, or deployment secret.
+`applicationSessionTokenProvider` is an optional asynchronous callback that
+returns the raw token for the application's current authenticated session. The
+SDK resolves it immediately before every manual report, crash report, and
+queued-crash retry and sends it only in the
+`x-handrail-application-session-token` request header. It never puts the token
+in the JSON payload or offline crash queue.
 
-Return `null` when the app has no authenticated session. Otherwise, construct a
-new version-1 assertion with `HandrailReporterAssertion.fresh`. It creates a
-current UTC `issued_at` value and a cryptographically random base64url `nonce`:
+Handrail hashes the token, verifies it against the project/environment-scoped
+Known Users session mapping, and derives the stable application user ID from
+the session row. The client does not submit a trusted user ID. Missing,
+expired, revoked, ambiguous, or invalid sessions leave attribution unverified.
+Authentication supplies attribution only and does not grant repair or
+deployment authority.
 
-```dart
-reporterAssertionProvider: () async {
-  final session = await appAuth.currentSessionForBugReporting();
-  if (session == null || !session.isAuthenticated) return null;
-
-  return HandrailReporterAssertion.fresh(
-    userIdentifier: session.stableUserId, // Never a display name or email.
-    sessionIdentifier: session.sessionId,
-    verifier: session.verifier,
-  );
-},
-```
-
-The SDK calls the provider immediately before each manual submission, crash
-submission, and queued-crash retry. Do not memoize assertions: every transport
-attempt needs current user/session data, a fresh `issued_at`, and a fresh nonce.
-This also means a sign-out, account switch, session rotation, expiration, or
-revocation is reflected on the next attempt. Unsupported or incomplete
-assertions are omitted, leaving the report on the vanilla, non-authoritative
-path.
-
-Assertion and verifier material is transport-only. Never write it to secure or
-plain preferences, local databases, files, offline queues, logs, analytics,
-breadcrumbs, crash metadata, or error evidence. The SDK deliberately removes
-`reporter_assertion` before storing a failed crash report and invokes the
-provider again only when retry transport is attempted. The application's
-authentication layer remains the sole owner of the current session credential;
-the reporter integration must not copy the verifier into any additional
-storage.
-
-For web integrations backed by an HttpOnly cookie, keep the cookie and session
-secret out of browser JavaScript. Have the browser call an authenticated
-same-origin server route; derive the assertion from that route's verified
-request or signed-session context, generate fresh proof fields there, and send
-it only on that single Handrail intake request. Do not put the assertion into
-browser storage, client retry queues, logs, analytics, or captured errors.
+Never copy the raw session token into static reporter config, browser storage,
+preferences, local databases, files, logs, analytics, breadcrumbs, crash
+metadata, or error evidence. For web applications whose session is held in an
+HttpOnly cookie, forward the token from an authenticated same-origin server
+handler; do not expose the cookie to browser JavaScript.
 
 #### Migrating from username attribution
 
 Existing integrations can keep `username` or `usernameProvider` for display.
-Add `reporterAssertionProvider` alongside it after Handrail has a matching
-identity source and reporter-profile binding. Do not copy the username into
-`userIdentifier`, and do not turn the public report token into a verifier. If
-the authenticated context cannot produce all three stable session values,
-return `null`; ordinary bug submission continues, but Handrail will not treat
-the reporter as verified.
+Add `applicationSessionTokenProvider` after Config has a Known Users stable ID
+and session mapping. Do not turn the public report token into an application
+session token. If there is no current authenticated session, return `null`;
+ordinary bug submission continues without verified attribution.
 
 ## Crash capture
 

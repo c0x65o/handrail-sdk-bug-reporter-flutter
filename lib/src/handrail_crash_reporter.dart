@@ -239,6 +239,8 @@ class HandrailCrashReporter {
     final buildMetadata = await HandrailAppBuildMetadata.fromConfig(config);
     final profileKey = await config.resolveProfileKey();
     final username = await config.resolveUsername();
+    final applicationSessionToken =
+        await config.resolveApplicationSessionToken();
     final reporterAssertion = await config.resolveReporterAssertion();
     final payload = _buildCrashPayload(
       error: error,
@@ -264,7 +266,10 @@ class HandrailCrashReporter {
     }
     final client = clientFactory(config);
     try {
-      final result = await client.submitJson(payloadJson);
+      final result = await client.submitJson(
+        payloadJson,
+        applicationSessionToken: applicationSessionToken,
+      );
       if (result.isSuccess && pendingId != null) {
         await _removePendingCrashReport(pendingId);
       }
@@ -386,11 +391,16 @@ class HandrailCrashReporter {
       final client = clientFactory(config);
       try {
         final payloadToSubmit = Map<String, Object?>.from(payload);
+        final applicationSessionToken =
+            await config.resolveApplicationSessionToken();
         final reporterAssertion = await config.resolveReporterAssertion();
         if (reporterAssertion != null) {
           payloadToSubmit['reporter_assertion'] = reporterAssertion.toJson();
         }
-        final result = await client.submitJson(payloadToSubmit);
+        final result = await client.submitJson(
+          payloadToSubmit,
+          applicationSessionToken: applicationSessionToken,
+        );
         if (!result.isSuccess) return;
         await _removePendingCrashReport(id);
       } catch (_) {
