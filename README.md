@@ -39,7 +39,13 @@ Submitted payloads include SDK diagnostics under explicit fields:
 - `reporter_sdk_commit`
 - `reporter_sdk_ref`
 
-The package version is owned by `pubspec.yaml` and mirrored by the SDK metadata constants for runtime payloads. Build systems may override `HANDRAIL_BUG_REPORTER_SDK_COMMIT`, `HANDRAIL_BUG_REPORTER_SDK_REF`, or `HANDRAIL_BUG_REPORTER_SDK_VERSION` with `--dart-define` when stamping immutable release builds; apps should not hard-code these values in their reporter config.
+The package version is owned by `pubspec.yaml`. Handrail's shared version-bump
+operation regenerates the runtime SDK version through
+`.handrail/version-mirrors.json`; do not edit the mirrored default directly.
+Build systems may override `HANDRAIL_BUG_REPORTER_SDK_COMMIT`,
+`HANDRAIL_BUG_REPORTER_SDK_REF`, or `HANDRAIL_BUG_REPORTER_SDK_VERSION` with
+`--dart-define` when stamping immutable release builds; apps should not
+hard-code these values in their reporter config.
 
 The SDK treats reporting and production submission as enabled by default once
 the public Handrail config and report token are present. Pass

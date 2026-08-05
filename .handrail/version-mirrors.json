@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "pubspec.yaml",
+  "mirrors": [
+    {
+      "file": "lib/src/handrail_bug_reporter_sdk_metadata.dart",
+      "format": "dart_string_from_environment_default",
+      "environment_key": "HANDRAIL_BUG_REPORTER_SDK_VERSION"
+    }
+  ]
+}
