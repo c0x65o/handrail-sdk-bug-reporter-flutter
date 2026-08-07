@@ -127,6 +127,7 @@ class HandrailBugReporterConfig {
     this.commitSha,
     this.enabled = true,
     this.allowProductionReporting = true,
+    this.policyDiscoveryTimeout = const Duration(seconds: 5),
     this.triggers = const HandrailBugReporterTriggers(),
     this.username,
     this.usernameProvider,
@@ -163,6 +164,9 @@ class HandrailBugReporterConfig {
   final String? commitSha;
   final bool enabled;
   final bool allowProductionReporting;
+
+  /// Best-effort optional-action discovery deadline. Submission is unaffected.
+  final Duration policyDiscoveryTimeout;
   final HandrailBugReporterTriggers triggers;
   final String? username;
   final HandrailUsernameProvider? usernameProvider;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -141,6 +142,24 @@ void main() {
         HandrailBugAutomationOption.deployProduction,
       },
     );
+  });
+
+  test('policy discovery falls back when the policy request stalls', () async {
+    final client = HandrailBugReportClient(
+      apiBaseUrl: 'https://example.test/api',
+      reportToken: 'report-token',
+      httpClient: MockClient(
+        (_) => Completer<http.Response>().future,
+      ),
+    );
+
+    final policy = await client.loadPolicy(
+      projectId: 'project-123',
+      environment: 'staging',
+      timeout: const Duration(milliseconds: 20),
+    );
+
+    expect(policy, isNull);
   });
 
   test('submission honors configured endpoint path override', () async {

@@ -626,13 +626,18 @@ class _ReportSheetState extends State<_ReportSheet> {
           endpointPath: widget.config.endpointPath,
         );
     try {
-      final sessionToken = await widget.config.resolveApplicationSessionToken();
-      final policy = await client.loadPolicy(
-        projectId: widget.config.projectId,
-        projectSlug: widget.config.projectSlug,
-        environment: widget.config.environment,
-        applicationSessionToken: sessionToken,
-      );
+      final policy = await (() async {
+        final sessionToken =
+            await widget.config.resolveApplicationSessionToken();
+        return client.loadPolicy(
+          projectId: widget.config.projectId,
+          projectSlug: widget.config.projectSlug,
+          environment: widget.config.environment,
+          applicationSessionToken: sessionToken,
+          timeout: widget.config.policyDiscoveryTimeout,
+        );
+      })()
+          .timeout(widget.config.policyDiscoveryTimeout);
       if (!mounted) return;
       setState(() {
         _automationPolicy = policy;

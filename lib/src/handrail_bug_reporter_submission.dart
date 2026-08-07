@@ -64,6 +64,7 @@ class HandrailBugReportClient {
     String? projectSlug,
     required String environment,
     String? applicationSessionToken,
+    Duration timeout = const Duration(seconds: 5),
   }) async {
     final normalizedProjectId = projectId.trim();
     final normalizedProjectSlug = projectSlug?.trim() ?? '';
@@ -74,13 +75,15 @@ class HandrailBugReportClient {
         'project_slug': normalizedProjectSlug,
     };
     try {
-      final response = await _httpClient.get(
-        endpoint.replace(
-          path: '${endpoint.path.replaceFirst(RegExp(r'/+$'), '')}/policy',
-          queryParameters: query,
-        ),
-        headers: _headers(applicationSessionToken: applicationSessionToken),
-      );
+      final response = await _httpClient
+          .get(
+            endpoint.replace(
+              path: '${endpoint.path.replaceFirst(RegExp(r'/+$'), '')}/policy',
+              queryParameters: query,
+            ),
+            headers: _headers(applicationSessionToken: applicationSessionToken),
+          )
+          .timeout(timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) return null;
       final decoded = jsonDecode(response.body);
       if (decoded is! Map) return null;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -433,6 +434,46 @@ void main() {
       find.text('Optional Handrail actions'),
       findsNothing,
     );
+  });
+
+  testWidgets(
+      'stalled policy discovery does not leave optional actions loading',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: HandrailBugReporterConfig(
+            projectId: 'project-123',
+            environment: 'staging',
+            appVersion: '1.2.3',
+            buildNumber: '42',
+            reportToken: 'report-token',
+            policyDiscoveryTimeout: const Duration(milliseconds: 20),
+            applicationSessionTokenProvider: () => Completer<String?>().future,
+          ),
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => HandrailBugReporter.open(context),
+                child: const Text('Open reporter'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 30));
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Loading optional actions…'), findsNothing);
+    expect(find.text('Optional Handrail actions'), findsNothing);
+    expect(find.text('What happened?'), findsOneWidget);
   });
 
   testWidgets(

@@ -107,9 +107,11 @@ does not display low/medium/high risk choices. Selected controls are submitted
 under `automation_requests`; Handrail reclassifies the report and applies the
 exact risk row plus the existing workflow and deployment safety gates.
 
-Policy discovery is best-effort. If it is unavailable or returns no `Ask`
-controls, ordinary bug reporting remains available and no automation options
-are shown.
+Policy discovery is best-effort and falls back after five seconds by default.
+If it is unavailable, stalls, or returns no `Ask` controls, ordinary bug
+reporting remains available and no automation options are shown. Apps may set
+`policyDiscoveryTimeout` to a different bounded duration; it does not affect
+report submission.
 
 Never copy the raw session token into static reporter config, browser storage,
 preferences, local databases, files, logs, analytics, breadcrumbs, crash
