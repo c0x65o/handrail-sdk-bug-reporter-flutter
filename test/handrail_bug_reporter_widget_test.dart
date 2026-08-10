@@ -382,6 +382,86 @@ void main() {
     );
   });
 
+  testWidgets(
+      'policy discovery retries when application identity is still hydrating',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var sessionProviderCalls = 0;
+    var policyRequests = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: HandrailBugReporterConfig(
+            projectId: 'project-123',
+            environment: 'staging',
+            appVersion: '1.2.3',
+            buildNumber: '42',
+            reportToken: 'report-token',
+            applicationSessionTokenProvider: () async {
+              sessionProviderCalls += 1;
+              return sessionProviderCalls == 1
+                  ? null
+                  : 'hydrated-session-token';
+            },
+          ),
+          clientFactory: (config) => HandrailBugReportClient(
+            apiBaseUrl: config.apiBaseUrl,
+            reportToken: config.reportToken,
+            httpClient: MockClient((request) async {
+              policyRequests += 1;
+              final verified =
+                  request.headers['x-handrail-application-session-token'] ==
+                      'hydrated-session-token';
+              return http.Response(
+                jsonEncode(<String, Object?>{
+                  'schema_version': 1,
+                  'project_id': 'project-123',
+                  'environment': 'staging',
+                  'reporter': <String, Object?>{
+                    'identity_verified': verified,
+                    'access_level': verified ? 'full_access' : 'default',
+                  },
+                  'ask_options': verified
+                      ? <Object?>[
+                          <String, Object?>{
+                            'key': 'deploy_production',
+                            'label': 'Deploy the fix to production',
+                          },
+                        ]
+                      : const <Object?>[],
+                }),
+                200,
+              );
+            }),
+          ),
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => HandrailBugReporter.open(context),
+                child: const Text('Open reporter'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+
+    expect(sessionProviderCalls, 2);
+    expect(policyRequests, 2);
+    expect(find.text('Deploy the fix to production'), findsOneWidget);
+  });
+
   testWidgets('automation options stay hidden when policy has no Ask controls',
       (tester) async {
     await tester.pumpWidget(
@@ -406,7 +486,12 @@ void main() {
                       'identity_verified': false,
                       'access_level': 'default',
                     },
-                    'ask_options': const <Object?>[],
+                    'ask_options': const <Object?>[
+                      <String, Object?>{
+                        'key': 'deploy_production',
+                        'label': 'Deploy the fix to production',
+                      },
+                    ],
                   }),
                   200,
                 )),

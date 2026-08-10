@@ -22,6 +22,10 @@ const String _webScreenshotUnsupportedReason =
     'Screenshot capture is not supported in Flutter web preview.';
 const String _genericScreenshotCaptureFailureReason =
     'Screenshot capture failed before the report opened.';
+const List<Duration> _automationPolicyIdentityRetryDelays = <Duration>[
+  Duration(milliseconds: 100),
+  Duration(milliseconds: 250),
+];
 
 class HandrailBugReporter extends StatefulWidget {
   const HandrailBugReporter({
@@ -625,17 +629,35 @@ class _ReportSheetState extends State<_ReportSheet> {
           reportToken: widget.config.reportToken,
           endpointPath: widget.config.endpointPath,
         );
+    var discoveryActive = true;
     try {
       final policy = await (() async {
-        final sessionToken =
-            await widget.config.resolveApplicationSessionToken();
-        return client.loadPolicy(
-          projectId: widget.config.projectId,
-          projectSlug: widget.config.projectSlug,
-          environment: widget.config.environment,
-          applicationSessionToken: sessionToken,
-          timeout: widget.config.policyDiscoveryTimeout,
-        );
+        for (var attempt = 0;
+            attempt <= _automationPolicyIdentityRetryDelays.length;
+            attempt += 1) {
+          if (!discoveryActive || !mounted) return null;
+          if (attempt > 0) {
+            await Future<void>.delayed(
+              _automationPolicyIdentityRetryDelays[attempt - 1],
+            );
+            if (!discoveryActive || !mounted) return null;
+          }
+          final sessionToken =
+              await widget.config.resolveApplicationSessionToken();
+          if (!discoveryActive || !mounted) return null;
+          final candidate = await client.loadPolicy(
+            projectId: widget.config.projectId,
+            projectSlug: widget.config.projectSlug,
+            environment: widget.config.environment,
+            applicationSessionToken: sessionToken,
+            timeout: widget.config.policyDiscoveryTimeout,
+          );
+          if (candidate?.identityVerified == true) return candidate;
+          if (widget.config.applicationSessionTokenProvider == null) {
+            return null;
+          }
+        }
+        return null;
       })()
           .timeout(widget.config.policyDiscoveryTimeout);
       if (!mounted) return;
@@ -649,6 +671,7 @@ class _ReportSheetState extends State<_ReportSheet> {
     } catch (_) {
       // Policy discovery must never block vanilla bug reporting.
     } finally {
+      discoveryActive = false;
       client.close();
       if (mounted && _automationPolicyLoading) {
         setState(() => _automationPolicyLoading = false);

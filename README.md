@@ -111,7 +111,9 @@ Policy discovery is best-effort and falls back after five seconds by default.
 If it is unavailable, stalls, or returns no `Ask` controls, ordinary bug
 reporting remains available and no automation options are shown. Apps may set
 `policyDiscoveryTimeout` to a different bounded duration; it does not affect
-report submission.
+report submission. When an application-session provider is configured, the SDK
+briefly re-resolves it after an unverified response so opening the sheet during
+auth hydration does not permanently hide the authenticated controls.
 
 Never copy the raw session token into static reporter config, browser storage,
 preferences, local databases, files, logs, analytics, breadcrumbs, crash
