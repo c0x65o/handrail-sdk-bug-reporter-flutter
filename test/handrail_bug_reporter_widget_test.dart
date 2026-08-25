@@ -112,6 +112,44 @@ void main() {
     expect(result?.opened, isTrue);
   });
 
+  testWidgets('restores and reports the shake preference', (tester) async {
+    final changes = <bool>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: _config,
+          initialShakeReportingEnabled: false,
+          onShakeReportingChanged: changes.add,
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => HandrailBugReporter.open(context),
+                child: const Text('Open reporter'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Toggle on to enable'), findsOneWidget);
+    expect(find.text('Toggle off to disable'), findsNothing);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+
+    expect(changes, <bool>[true]);
+    expect(find.text('Toggle off to disable'), findsOneWidget);
+    expect(find.text('Toggle on to enable'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 500));
+  });
+
   testWidgets('description field capitalizes sentences', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

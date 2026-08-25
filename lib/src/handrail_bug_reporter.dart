@@ -33,6 +33,8 @@ class HandrailBugReporter extends StatefulWidget {
     required this.child,
     this.clientFactory,
     this.metadataProvider,
+    this.initialShakeReportingEnabled,
+    this.onShakeReportingChanged,
     super.key,
   });
 
@@ -41,6 +43,13 @@ class HandrailBugReporter extends StatefulWidget {
   final HandrailBugReportClient Function(HandrailBugReporterConfig config)?
       clientFactory;
   final HandrailDeviceMetadataProvider? metadataProvider;
+
+  /// The user's initial preference for shake reporting.
+  ///
+  /// Trigger support remains controlled by [HandrailBugReporterConfig.triggers].
+  /// When omitted, shake reporting starts in the trigger's configured state.
+  final bool? initialShakeReportingEnabled;
+  final ValueChanged<bool>? onShakeReportingChanged;
 
   static Future<bool> open(BuildContext context) async {
     final result = await openWithResult(context);
@@ -141,7 +150,8 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _shakeReportingEnabled = widget.config.triggers.shake;
+    _shakeReportingEnabled =
+        widget.initialShakeReportingEnabled ?? widget.config.triggers.shake;
     _ignoreShakeUntil = DateTime.now().add(_lifecycleShakeGracePeriod);
     _syncShakeListener();
     _syncCrashReporter();
@@ -150,11 +160,18 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
   @override
   void didUpdateWidget(covariant HandrailBugReporter oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.config != widget.config) {
-      if (oldWidget.config.triggers.shake != widget.config.triggers.shake) {
-        _shakeReportingEnabled = widget.config.triggers.shake;
-      }
+    final shakeStateChanged =
+        oldWidget.config.triggers.shake != widget.config.triggers.shake ||
+            oldWidget.initialShakeReportingEnabled !=
+                widget.initialShakeReportingEnabled;
+    if (shakeStateChanged) {
+      _shakeReportingEnabled =
+          widget.initialShakeReportingEnabled ?? widget.config.triggers.shake;
+    }
+    if (oldWidget.config != widget.config || shakeStateChanged) {
       _syncShakeListener();
+    }
+    if (oldWidget.config != widget.config) {
       _syncCrashReporter();
     }
   }
@@ -223,6 +240,7 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
       _shakeReportingEnabled = enabled;
     });
     _syncShakeListener();
+    widget.onShakeReportingChanged?.call(enabled);
   }
 
   void _handleAccelerometer(AccelerometerEvent event) {
@@ -320,6 +338,11 @@ class _HandrailBugReporterState extends State<HandrailBugReporter>
     if (!currentAvailability.canOpen) {
       return HandrailBugReporterOpenResult.blocked(
         currentAvailability.blocker ?? 'Bug reporter is not available.',
+      );
+    }
+    if (!mounted || !targetContext.mounted) {
+      return const HandrailBugReporterOpenResult.blocked(
+        'Bug reporter is not mounted in the current app view.',
       );
     }
     _opening = true;
@@ -846,7 +869,9 @@ class _ReportSheetState extends State<_ReportSheet> {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Toggle off to disable',
+                            _shakeReportingEnabled
+                                ? 'Toggle off to disable'
+                                : 'Toggle on to enable',
                             style: TextStyle(color: colors.onSurfaceMuted),
                           ),
                         ],
