@@ -1041,7 +1041,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                         ),
                       ),
                       subtitle: Text(
-                        'We’ll send one email to ${_automationPolicy?.notificationRecipientHint ?? 'your Known User email'} after the fix is available in this environment. It includes an unsubscribe link.',
+                        'We’ll send one email to ${_automationPolicy?.notificationRecipientHint ?? 'your Known User email'} after the fix is available in this environment.',
                         style: TextStyle(color: colors.onSurfaceMuted),
                       ),
                       value: _notifyOnResolution,
