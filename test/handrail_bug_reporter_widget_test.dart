@@ -187,7 +187,8 @@ void main() {
     );
   });
 
-  testWidgets('notification opt-in is unchecked and reveals the account email',
+  testWidgets(
+      'notification opt-in appears for a Known User email without an email field',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
@@ -203,8 +204,30 @@ void main() {
             appVersion: '1.2.3',
             buildNumber: '42',
             reportToken: 'report-token',
-            reporterEmailProvider: () async => ' Account@Example.COM ',
             policyDiscoveryTimeout: const Duration(milliseconds: 20),
+          ),
+          clientFactory: (config) => HandrailBugReportClient(
+            apiBaseUrl: config.apiBaseUrl,
+            endpointPath: config.endpointPath,
+            reportToken: config.reportToken,
+            httpClient: MockClient((request) async => http.Response(
+                  jsonEncode(<String, Object?>{
+                    'schema_version': 1,
+                    'project_id': 'project-123',
+                    'environment': 'staging',
+                    'reporter': <String, Object?>{
+                      'identity_verified': true,
+                      'access_level': 'full_access',
+                    },
+                    'reporter_notifications': <String, Object?>{
+                      'available': true,
+                      'recipient_hint': 'a***@example.com',
+                      'lifecycles': <String>['fixed', 'deployed'],
+                    },
+                    'ask_options': <Object?>[],
+                  }),
+                  200,
+                )),
           ),
           child: Builder(
             builder: (context) => Scaffold(
@@ -228,15 +251,78 @@ void main() {
     final notificationLabel =
         find.text('Email me when this is fixed or deployed');
     expect(notificationLabel, findsOneWidget);
+    expect(find.textContaining('a***@example.com'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Email address'), findsNothing);
     await tester.ensureVisible(notificationLabel);
     await tester.tap(notificationLabel);
     await tester.pumpAndSettle();
 
-    final emailField = find.widgetWithText(TextFormField, 'Email address');
-    expect(emailField, findsOneWidget);
-    expect(tester.widget<TextFormField>(emailField).controller?.text,
-        'account@example.com');
+    expect(find.widgetWithText(TextFormField, 'Email address'), findsNothing);
+  });
+
+  testWidgets(
+      'notification opt-in is hidden when Known User email is unavailable',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: const HandrailBugReporterConfig(
+            projectId: 'project-123',
+            environment: 'staging',
+            appVersion: '1.2.3',
+            buildNumber: '42',
+            reportToken: 'report-token',
+            policyDiscoveryTimeout: Duration(milliseconds: 20),
+          ),
+          clientFactory: (config) => HandrailBugReportClient(
+            apiBaseUrl: config.apiBaseUrl,
+            endpointPath: config.endpointPath,
+            reportToken: config.reportToken,
+            httpClient: MockClient((request) async => http.Response(
+                  jsonEncode(<String, Object?>{
+                    'schema_version': 1,
+                    'project_id': 'project-123',
+                    'environment': 'staging',
+                    'reporter': <String, Object?>{
+                      'identity_verified': true,
+                      'access_level': 'full_access',
+                    },
+                    'reporter_notifications': <String, Object?>{
+                      'available': false,
+                      'recipient_hint': null,
+                      'lifecycles': <String>['fixed', 'deployed'],
+                    },
+                    'ask_options': <Object?>[],
+                  }),
+                  200,
+                )),
+          ),
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => HandrailBugReporter.open(context),
+                child: const Text('Open reporter'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Email me when this is fixed or deployed'), findsNothing);
+    expect(find.widgetWithText(TextFormField, 'Email address'), findsNothing);
   });
 
   testWidgets('submitted reports include brightness and selected severity',

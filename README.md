@@ -132,23 +132,25 @@ ordinary bug submission continues without verified attribution.
 ### Report update notifications
 
 The manual report sheet now supports an unchecked, report-scoped opt-in for
-Fixed and Deployed emails. Prefill the authenticated account address without
-storing it in the bug payload:
+Fixed and Deployed emails. Handrail makes the control available dynamically
+only when the current application session resolves to a verified Known User
+whose configured Display/email value is a valid email address:
 
 ```dart
 HandrailBugReporterConfig(
   // existing report configuration...
-  reporterEmailProvider: () async => authSession.currentUser?.email,
   applicationSessionTokenProvider: () async => authSession.rawToken,
   notificationsEnabled: true,
 )
 ```
 
-After Handrail accepts the report, the SDK posts the email and explicit consent
-to `/api/mobile-bug-reports/bugs/:bugId/subscription`. Subscription failure is
-shown separately and never changes the accepted report to an error. Every
-message includes a report-scoped unsubscribe link. Existing apps remain source
-compatible; the provider and feature flag are optional.
+The SDK receives only a masked recipient hint and never asks for or sends a
+manual email address. After Handrail accepts the report, the SDK posts explicit
+consent to `/api/mobile-bug-reports/bugs/:bugId/subscription`; Handrail verifies
+the session again and derives the recipient from Known Users. Subscription
+failure is shown separately and never changes the accepted report to an error.
+Every message includes a report-scoped unsubscribe link. Existing apps remain
+source compatible; legacy reporter-email config is ignored and deprecated.
 
 ## Crash capture
 

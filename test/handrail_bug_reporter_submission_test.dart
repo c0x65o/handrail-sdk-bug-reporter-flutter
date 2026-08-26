@@ -103,7 +103,6 @@ void main() {
       profileKey: 'profile',
       screenshotBase64: null,
       notifyOnResolution: true,
-      notificationEmail: ' Reporter@Example.COM ',
     );
 
     final result = await client.submit(
@@ -129,7 +128,6 @@ void main() {
     expect(jsonDecode(requests.last.body), <String, Object?>{
       'reporter_surface': 'mobile',
       'reporter_notification': <String, Object?>{
-        'email': 'reporter@example.com',
         'notify_on_resolution': true,
         'consent_version': 'v1',
       },
@@ -163,7 +161,6 @@ void main() {
       profileKey: null,
       screenshotBase64: null,
       notifyOnResolution: true,
-      notificationEmail: 'reporter@example.test',
     );
 
     final result = await client.submit(notificationPayload);
@@ -215,6 +212,11 @@ void main() {
               'identity_verified': true,
               'access_level': 'full_access',
             },
+            'reporter_notifications': <String, Object?>{
+              'available': true,
+              'recipient_hint': 'a***@example.com',
+              'lifecycles': <String>['fixed', 'deployed'],
+            },
             'ask_options': <Object?>[
               <String, Object?>{
                 'key': 'deploy_production',
@@ -244,6 +246,8 @@ void main() {
       'current-session-token',
     );
     expect(policy?.accessLevel, 'full_access');
+    expect(policy?.notificationAvailable, isTrue);
+    expect(policy?.notificationRecipientHint, 'a***@example.com');
     expect(
       policy?.askOptions,
       <HandrailBugAutomationOption>{

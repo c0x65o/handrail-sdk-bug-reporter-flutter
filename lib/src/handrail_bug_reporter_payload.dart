@@ -35,6 +35,7 @@ class HandrailBugReportDraft {
     this.deployFixedAppToStores = false,
     this.automationRequests = const <HandrailBugAutomationOption>{},
     this.notifyOnResolution = false,
+    @Deprecated('Notification recipients are derived from Known Users.')
     this.notificationEmail,
   });
 
@@ -51,6 +52,7 @@ class HandrailBugReportDraft {
   final bool deployFixedAppToStores;
   final Set<HandrailBugAutomationOption> automationRequests;
   final bool notifyOnResolution;
+  @Deprecated('Notification recipients are derived from Known Users.')
   final String? notificationEmail;
 }
 
@@ -79,6 +81,7 @@ class HandrailBugReportPayload {
     this.deployFixedAppToStores = false,
     this.automationRequests = const <HandrailBugAutomationOption>{},
     this.notifyOnResolution = false,
+    @Deprecated('Notification recipients are derived from Known Users.')
     this.notificationEmail,
     this.source,
     this.metadata = const <String, Object?>{},
@@ -164,6 +167,7 @@ class HandrailBugReportPayload {
   final bool deployFixedAppToStores;
   final Set<HandrailBugAutomationOption> automationRequests;
   final bool notifyOnResolution;
+  @Deprecated('Notification recipients are derived from Known Users.')
   final String? notificationEmail;
   final String reporterSdkVersion;
   final String? reporterSdkCommit;

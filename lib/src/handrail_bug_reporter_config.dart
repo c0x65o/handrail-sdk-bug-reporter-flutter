@@ -244,6 +244,7 @@ class HandrailBugReporterConfig {
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 
+  @Deprecated('Notification recipients are derived from Known Users.')
   Future<String?> resolveReporterEmail() async {
     final provided = await reporterEmailProvider?.call();
     final resolved =
