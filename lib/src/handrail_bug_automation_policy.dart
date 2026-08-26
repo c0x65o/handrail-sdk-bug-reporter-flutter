@@ -29,6 +29,8 @@ class HandrailBugAutomationPolicy {
     required this.identityVerified,
     required this.accessLevel,
     required this.askOptions,
+    required this.notificationAvailable,
+    this.notificationRecipientHint,
   });
 
   factory HandrailBugAutomationPolicy.fromJson(Map<String, Object?> json) {
@@ -37,6 +39,10 @@ class HandrailBugAutomationPolicy {
         ? Map<String, Object?>.from(reporter)
         : const <String, Object?>{};
     final rawOptions = json['ask_options'];
+    final notification = json['reporter_notifications'];
+    final notificationJson = notification is Map
+        ? Map<String, Object?>.from(notification)
+        : const <String, Object?>{};
     final askOptions = <HandrailBugAutomationOption>{};
     if (rawOptions is List) {
       for (final rawOption in rawOptions) {
@@ -55,6 +61,9 @@ class HandrailBugAutomationPolicy {
       identityVerified: reporterJson['identity_verified'] == true,
       accessLevel: reporterJson['access_level']?.toString() ?? 'default',
       askOptions: Set<HandrailBugAutomationOption>.unmodifiable(askOptions),
+      notificationAvailable: notificationJson['available'] == true,
+      notificationRecipientHint:
+          notificationJson['recipient_hint']?.toString(),
     );
   }
 
@@ -64,4 +73,6 @@ class HandrailBugAutomationPolicy {
   final bool identityVerified;
   final String accessLevel;
   final Set<HandrailBugAutomationOption> askOptions;
+  final bool notificationAvailable;
+  final String? notificationRecipientHint;
 }

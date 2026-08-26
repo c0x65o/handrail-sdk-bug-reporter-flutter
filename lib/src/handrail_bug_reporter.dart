@@ -578,7 +578,6 @@ class _ReportSheet extends StatefulWidget {
 class _ReportSheetState extends State<_ReportSheet> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
-  final _notificationEmailController = TextEditingController();
   String _severity = _bugReportSeverityMedium;
   late bool _includeScreenshot;
   final Set<HandrailBugAutomationOption> _automationRequests = {};
@@ -607,29 +606,17 @@ class _ReportSheetState extends State<_ReportSheet> {
     _descriptionController.addListener(_handleDescriptionChanged);
     unawaited(_loadBuildMetadata());
     unawaited(_loadAutomationPolicy());
-    unawaited(_loadReporterEmail());
   }
 
   @override
   void dispose() {
     _descriptionController.removeListener(_handleDescriptionChanged);
     _descriptionController.dispose();
-    _notificationEmailController.dispose();
     super.dispose();
   }
 
   void _handleDescriptionChanged() {
     setState(() {});
-  }
-
-  Future<void> _loadReporterEmail() async {
-    final email = await widget.config.resolveReporterEmail();
-    if (!mounted ||
-        email == null ||
-        _notificationEmailController.text.isNotEmpty) {
-      return;
-    }
-    _notificationEmailController.text = email;
   }
 
   void _setShakeReportingEnabled(bool enabled) {
@@ -760,9 +747,6 @@ class _ReportSheetState extends State<_ReportSheet> {
               _automationRequests,
             ),
             notifyOnResolution: _notifyOnResolution,
-            notificationEmail: _notifyOnResolution
-                ? _notificationEmailController.text.trim()
-                : null,
           ),
           device: metadata,
           profileKey: profileKey,
@@ -1040,7 +1024,8 @@ class _ReportSheetState extends State<_ReportSheet> {
                           height: 1.25,
                         ),
                   ),
-                  if (widget.config.notificationsEnabled) ...[
+                  if (widget.config.notificationsEnabled &&
+                      _automationPolicy?.notificationAvailable == true) ...[
                     const SizedBox(height: 24),
                     Divider(height: 1, color: colors.divider),
                     const SizedBox(height: 18),
@@ -1056,7 +1041,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                         ),
                       ),
                       subtitle: Text(
-                        'Only updates for this report. Every email includes an unsubscribe link.',
+                        'Sent to ${_automationPolicy?.notificationRecipientHint ?? 'your Known User email'}. Only updates for this report; every email includes an unsubscribe link.',
                         style: TextStyle(color: colors.onSurfaceMuted),
                       ),
                       value: _notifyOnResolution,
@@ -1066,34 +1051,6 @@ class _ReportSheetState extends State<_ReportSheet> {
                                 _notifyOnResolution = selected == true;
                               }),
                     ),
-                    if (_notifyOnResolution) ...[
-                      const SizedBox(height: 10),
-                      TextFormField(
-                        controller: _notificationEmailController,
-                        enabled: !submitting,
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const <String>[AutofillHints.email],
-                        maxLength: 254,
-                        decoration: InputDecoration(
-                          labelText: 'Email address',
-                          counterText: '',
-                          filled: true,
-                          fillColor: colors.inputFill,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        validator: (value) {
-                          if (!_notifyOnResolution) return null;
-                          final email = value?.trim() ?? '';
-                          return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                                  .hasMatch(email)
-                              ? null
-                              : 'Enter a valid email address.';
-                        },
-                      ),
-                    ],
                   ],
                   if (_automationPolicyLoading) ...[
                     const SizedBox(height: 24),

@@ -175,8 +175,10 @@ class HandrailBugReporterConfig {
   final String? username;
   final HandrailUsernameProvider? usernameProvider;
 
-  /// Optional account email used only to prefill explicit report updates.
+  /// Deprecated. Notification recipients are derived from Known Users.
+  @Deprecated('Notification recipients are derived from Known Users.')
   final String? reporterEmail;
+  @Deprecated('Notification recipients are derived from Known Users.')
   final HandrailReporterEmailProvider? reporterEmailProvider;
 
   /// Shows an unchecked, report-scoped lifecycle notification opt-in.

@@ -110,7 +110,6 @@ class HandrailBugReportClient {
       applicationSessionToken: applicationSessionToken,
     );
     if (!result.isSuccess || !payload.notifyOnResolution) return result;
-    final email = payload.notificationEmail?.trim().toLowerCase() ?? '';
     String? bugId;
     try {
       final decoded = jsonDecode(result.body);
@@ -118,7 +117,7 @@ class HandrailBugReportClient {
     } on Object {
       bugId = null;
     }
-    if (bugId == null || bugId!.isEmpty || email.isEmpty) {
+    if (bugId == null || bugId!.isEmpty) {
       return HandrailBugReportSubmissionResult.success(
         statusCode: result.statusCode,
         body: result.body,
@@ -143,7 +142,6 @@ class HandrailBugReportClient {
         body: jsonEncode(<String, Object?>{
           'reporter_surface': 'mobile',
           'reporter_notification': <String, Object?>{
-            'email': email,
             'notify_on_resolution': true,
             'consent_version': 'v1',
           },
