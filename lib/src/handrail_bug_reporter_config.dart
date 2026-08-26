@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 typedef HandrailProfileKeyProvider = Future<String?> Function();
 typedef HandrailUsernameProvider = Future<String?> Function();
+typedef HandrailReporterEmailProvider = Future<String?> Function();
 typedef HandrailApplicationSessionTokenProvider = Future<String?> Function();
 typedef HandrailReporterAssertionProvider = Future<HandrailReporterAssertion?>
     Function();
@@ -131,6 +132,9 @@ class HandrailBugReporterConfig {
     this.triggers = const HandrailBugReporterTriggers(),
     this.username,
     this.usernameProvider,
+    this.reporterEmail,
+    this.reporterEmailProvider,
+    this.notificationsEnabled = true,
     this.profileKeyProvider,
     this.applicationSessionTokenProvider,
     this.reporterAssertionProvider,
@@ -170,6 +174,13 @@ class HandrailBugReporterConfig {
   final HandrailBugReporterTriggers triggers;
   final String? username;
   final HandrailUsernameProvider? usernameProvider;
+
+  /// Optional account email used only to prefill explicit report updates.
+  final String? reporterEmail;
+  final HandrailReporterEmailProvider? reporterEmailProvider;
+
+  /// Shows an unchecked, report-scoped lifecycle notification opt-in.
+  final bool notificationsEnabled;
   final HandrailProfileKeyProvider? profileKeyProvider;
   final HandrailApplicationSessionTokenProvider?
       applicationSessionTokenProvider;
@@ -229,6 +240,14 @@ class HandrailBugReporterConfig {
     final key = await profileKeyProvider?.call();
     final trimmed = key?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  Future<String?> resolveReporterEmail() async {
+    final provided = await reporterEmailProvider?.call();
+    final resolved =
+        provided?.trim().isNotEmpty == true ? provided : reporterEmail;
+    final normalized = resolved?.trim().toLowerCase();
+    return normalized?.isNotEmpty == true ? normalized : null;
   }
 
   Future<String?> resolveUsername() async {

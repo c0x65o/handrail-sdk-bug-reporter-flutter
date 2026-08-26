@@ -65,6 +65,114 @@ void main() {
     expect(captured.headers.containsKey('authorization'), isFalse);
   });
 
+  test('notification opt-in follows an accepted report as a separate request',
+      () async {
+    final requests = <http.Request>[];
+    final client = HandrailBugReportClient(
+      apiBaseUrl: 'https://example.test/api',
+      reportToken: 'report-token',
+      httpClient: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path.endsWith('/subscription')) {
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'notification_subscription': <String, Object?>{
+                'active': true,
+              },
+            }),
+            201,
+          );
+        }
+        return http.Response('{"bug_id":"bug-notify-1"}', 201);
+      }),
+    );
+    const notificationPayload = HandrailBugReportPayload(
+      projectId: 'project-123',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.3.105',
+      buildNumber: '217',
+      commitSha: 'abc123',
+      platform: 'android',
+      deviceModel: 'Pixel',
+      osVersion: 'Android 15',
+      route: '/workspace',
+      appBrightness: 'light',
+      title: 'Broken screen',
+      description: 'Screen fails to load.',
+      profileKey: 'profile',
+      screenshotBase64: null,
+      notifyOnResolution: true,
+      notificationEmail: ' Reporter@Example.COM ',
+    );
+
+    final result = await client.submit(
+      notificationPayload,
+      applicationSessionToken: 'current-session-token',
+    );
+
+    expect(result.isSuccess, isTrue);
+    expect(result.notificationSubscribed, isTrue);
+    expect(result.notificationWarning, isNull);
+    expect(requests, hasLength(2));
+    expect(requests.first.url.path, '/api/mobile-bug-reports');
+    expect(jsonDecode(requests.first.body),
+        isNot(contains('reporter_notification')));
+    expect(
+      requests.last.url.toString(),
+      'https://example.test/api/mobile-bug-reports/bugs/bug-notify-1/subscription?project_id=project-123&environment=staging',
+    );
+    expect(
+      requests.last.headers['x-handrail-application-session-token'],
+      'current-session-token',
+    );
+    expect(jsonDecode(requests.last.body), <String, Object?>{
+      'reporter_surface': 'mobile',
+      'reporter_notification': <String, Object?>{
+        'email': 'reporter@example.com',
+        'notify_on_resolution': true,
+        'consent_version': 'v1',
+      },
+    });
+  });
+
+  test('notification failure does not turn an accepted report into an error',
+      () async {
+    final client = HandrailBugReportClient(
+      apiBaseUrl: 'https://example.test/api',
+      reportToken: 'report-token',
+      httpClient: MockClient((request) async =>
+          request.url.path.endsWith('/subscription')
+              ? http.Response('unavailable', 503)
+              : http.Response('{"bug_id":"bug-notify-2"}', 201)),
+    );
+    const notificationPayload = HandrailBugReportPayload(
+      projectId: 'project-123',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.3.105',
+      buildNumber: '217',
+      commitSha: null,
+      platform: 'ios',
+      deviceModel: null,
+      osVersion: null,
+      route: null,
+      appBrightness: null,
+      title: 'Broken screen',
+      description: 'Screen fails to load.',
+      profileKey: null,
+      screenshotBase64: null,
+      notifyOnResolution: true,
+      notificationEmail: 'reporter@example.test',
+    );
+
+    final result = await client.submit(notificationPayload);
+
+    expect(result.isSuccess, isTrue);
+    expect(result.notificationSubscribed, isFalse);
+    expect(result.notificationWarning, contains('report was sent'));
+  });
+
   test('submission sends current application session proof only as a header',
       () async {
     late http.Request captured;

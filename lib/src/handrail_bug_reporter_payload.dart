@@ -34,6 +34,8 @@ class HandrailBugReportDraft {
     this.appBrightness,
     this.deployFixedAppToStores = false,
     this.automationRequests = const <HandrailBugAutomationOption>{},
+    this.notifyOnResolution = false,
+    this.notificationEmail,
   });
 
   final String title;
@@ -48,6 +50,8 @@ class HandrailBugReportDraft {
   final String? appBrightness;
   final bool deployFixedAppToStores;
   final Set<HandrailBugAutomationOption> automationRequests;
+  final bool notifyOnResolution;
+  final String? notificationEmail;
 }
 
 @immutable
@@ -74,6 +78,8 @@ class HandrailBugReportPayload {
     this.username,
     this.deployFixedAppToStores = false,
     this.automationRequests = const <HandrailBugAutomationOption>{},
+    this.notifyOnResolution = false,
+    this.notificationEmail,
     this.source,
     this.metadata = const <String, Object?>{},
     this.severity,
@@ -125,6 +131,8 @@ class HandrailBugReportPayload {
       screenshotCaptureError: draft.screenshotCaptureError,
       deployFixedAppToStores: draft.deployFixedAppToStores,
       automationRequests: draft.automationRequests,
+      notifyOnResolution: draft.notifyOnResolution,
+      notificationEmail: draft.notificationEmail,
     );
   }
 
@@ -155,6 +163,8 @@ class HandrailBugReportPayload {
   final String? screenshotCaptureError;
   final bool deployFixedAppToStores;
   final Set<HandrailBugAutomationOption> automationRequests;
+  final bool notifyOnResolution;
+  final String? notificationEmail;
   final String reporterSdkVersion;
   final String? reporterSdkCommit;
   final String reporterSdkRef;

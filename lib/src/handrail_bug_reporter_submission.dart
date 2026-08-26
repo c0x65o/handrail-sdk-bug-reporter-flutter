@@ -16,6 +16,8 @@ class HandrailBugReportSubmissionResult {
   const HandrailBugReportSubmissionResult.success({
     required this.statusCode,
     this.body = '',
+    this.notificationSubscribed = false,
+    this.notificationWarning,
   })  : status = HandrailBugReportSubmissionStatus.success,
         errorMessage = null;
 
@@ -23,12 +25,16 @@ class HandrailBugReportSubmissionResult {
     required this.statusCode,
     required this.errorMessage,
     this.body = '',
-  }) : status = HandrailBugReportSubmissionStatus.error;
+  })  : status = HandrailBugReportSubmissionStatus.error,
+        notificationSubscribed = false,
+        notificationWarning = null;
 
   final HandrailBugReportSubmissionStatus status;
   final int? statusCode;
   final String body;
   final String? errorMessage;
+  final bool notificationSubscribed;
+  final String? notificationWarning;
 
   bool get isSuccess => status == HandrailBugReportSubmissionStatus.success;
 }
@@ -98,10 +104,67 @@ class HandrailBugReportClient {
 
   Future<HandrailBugReportSubmissionResult> submit(
       HandrailBugReportPayload payload,
-      {String? applicationSessionToken}) {
-    return submitJson(
+      {String? applicationSessionToken}) async {
+    final result = await submitJson(
       payload.toJson(),
       applicationSessionToken: applicationSessionToken,
+    );
+    if (!result.isSuccess || !payload.notifyOnResolution) return result;
+    final email = payload.notificationEmail?.trim().toLowerCase() ?? '';
+    String? bugId;
+    try {
+      final decoded = jsonDecode(result.body);
+      if (decoded is Map) bugId = decoded['bug_id']?.toString().trim();
+    } on Object {
+      bugId = null;
+    }
+    if (bugId == null || bugId!.isEmpty || email.isEmpty) {
+      return HandrailBugReportSubmissionResult.success(
+        statusCode: result.statusCode,
+        body: result.body,
+        notificationWarning:
+            'The report was sent, but update notifications could not be enabled.',
+      );
+    }
+    try {
+      final response = await _httpClient.post(
+        endpoint.replace(
+          path:
+              '${endpoint.path.replaceFirst(RegExp(r'/+$'), '')}/bugs/${Uri.encodeComponent(bugId!)}/subscription',
+          queryParameters: <String, String>{
+            if (payload.projectId?.trim().isNotEmpty == true)
+              'project_id': payload.projectId!.trim()
+            else if (payload.projectSlug?.trim().isNotEmpty == true)
+              'project_slug': payload.projectSlug!.trim(),
+            'environment': payload.environment.trim(),
+          },
+        ),
+        headers: _headers(applicationSessionToken: applicationSessionToken),
+        body: jsonEncode(<String, Object?>{
+          'reporter_surface': 'mobile',
+          'reporter_notification': <String, Object?>{
+            'email': email,
+            'notify_on_resolution': true,
+            'consent_version': 'v1',
+          },
+        }),
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return HandrailBugReportSubmissionResult.success(
+          statusCode: result.statusCode,
+          body: result.body,
+          notificationSubscribed: true,
+        );
+      }
+    } on Object {
+      // Report acceptance remains successful even when opt-in persistence is
+      // temporarily unavailable.
+    }
+    return HandrailBugReportSubmissionResult.success(
+      statusCode: result.statusCode,
+      body: result.body,
+      notificationWarning:
+          'The report was sent, but update notifications could not be enabled.',
     );
   }
 

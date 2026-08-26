@@ -129,6 +129,27 @@ and session mapping. Do not turn the public report token into an application
 session token. If there is no current authenticated session, return `null`;
 ordinary bug submission continues without verified attribution.
 
+### Report update notifications
+
+The manual report sheet now supports an unchecked, report-scoped opt-in for
+Fixed and Deployed emails. Prefill the authenticated account address without
+storing it in the bug payload:
+
+```dart
+HandrailBugReporterConfig(
+  // existing report configuration...
+  reporterEmailProvider: () async => authSession.currentUser?.email,
+  applicationSessionTokenProvider: () async => authSession.rawToken,
+  notificationsEnabled: true,
+)
+```
+
+After Handrail accepts the report, the SDK posts the email and explicit consent
+to `/api/mobile-bug-reports/bugs/:bugId/subscription`. Subscription failure is
+shown separately and never changes the accepted report to an error. Every
+message includes a report-scoped unsubscribe link. Existing apps remain source
+compatible; the provider and feature flag are optional.
+
 ## Crash capture
 
 When `HandrailBugReporter` is mounted with a complete submission config, the

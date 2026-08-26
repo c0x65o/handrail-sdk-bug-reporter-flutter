@@ -153,6 +153,32 @@ void main() {
     expect(payload.toJson(), isNot(contains('username')));
   });
 
+  test('report notification details stay out of the durable bug payload', () {
+    const payload = HandrailBugReportPayload(
+      projectId: 'project-123',
+      environment: 'staging',
+      appFlavor: 'staging',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      commitSha: null,
+      platform: 'ios',
+      deviceModel: null,
+      osVersion: null,
+      route: null,
+      appBrightness: null,
+      title: 'Checkout freezes',
+      description: 'The checkout screen locks.',
+      profileKey: null,
+      screenshotBase64: null,
+      notifyOnResolution: true,
+      notificationEmail: 'reporter@example.test',
+    );
+
+    expect(payload.toJson(), isNot(contains('reporter_notification')));
+    expect(
+        payload.toJson().toString(), isNot(contains('reporter@example.test')));
+  });
+
   test('payload includes only selected policy Ask options', () {
     const payload = HandrailBugReportPayload(
       projectId: 'project-123',

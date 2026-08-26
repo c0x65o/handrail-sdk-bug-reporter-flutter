@@ -187,6 +187,58 @@ void main() {
     );
   });
 
+  testWidgets('notification opt-in is unchecked and reveals the account email',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HandrailBugReporter(
+          config: HandrailBugReporterConfig(
+            projectId: 'project-123',
+            environment: 'staging',
+            appVersion: '1.2.3',
+            buildNumber: '42',
+            reportToken: 'report-token',
+            reporterEmailProvider: () async => ' Account@Example.COM ',
+            policyDiscoveryTimeout: const Duration(milliseconds: 20),
+          ),
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => HandrailBugReporter.open(context),
+                child: const Text('Open reporter'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open reporter'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report bug'));
+    await tester.pumpAndSettle();
+
+    final notificationLabel =
+        find.text('Email me when this is fixed or deployed');
+    expect(notificationLabel, findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Email address'), findsNothing);
+    await tester.ensureVisible(notificationLabel);
+    await tester.tap(notificationLabel);
+    await tester.pumpAndSettle();
+
+    final emailField = find.widgetWithText(TextFormField, 'Email address');
+    expect(emailField, findsOneWidget);
+    expect(tester.widget<TextFormField>(emailField).controller?.text,
+        'account@example.com');
+  });
+
   testWidgets('submitted reports include brightness and selected severity',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1200);

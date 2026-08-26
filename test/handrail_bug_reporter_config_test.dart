@@ -124,6 +124,24 @@ void main() {
   });
 
   test(
+      'reporter email resolution normalizes provider values and keeps opt-in configurable',
+      () async {
+    final config = HandrailBugReporterConfig(
+      projectId: 'project-123',
+      environment: 'staging',
+      appVersion: '1.2.3',
+      buildNumber: '42',
+      reportToken: 'report-token',
+      reporterEmail: 'fallback@example.test',
+      reporterEmailProvider: () async => ' Current.User@Example.COM ',
+      notificationsEnabled: false,
+    );
+
+    expect(await config.resolveReporterEmail(), 'current.user@example.com');
+    expect(config.notificationsEnabled, isFalse);
+  });
+
+  test(
       'reporter assertion provider accepts only the supported complete version',
       () async {
     final valid = HandrailBugReporterConfig(
