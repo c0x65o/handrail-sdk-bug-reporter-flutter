@@ -767,7 +767,7 @@ class _ReportSheetState extends State<_ReportSheet> {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
           content: Text(result.notificationWarning ??
               (_notifyOnResolution
-                  ? 'Bug report sent. We’ll email you when it is fixed or deployed.'
+                  ? 'Bug report sent. We’ll email you when the fix is available in this environment.'
                   : 'Bug report sent.')),
         ));
         return;
@@ -1033,7 +1033,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                       contentPadding: EdgeInsets.zero,
                       controlAffinity: ListTileControlAffinity.trailing,
                       title: Text(
-                        'Email me when this is fixed or deployed',
+                        'Email me when this is fixed',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w500,
@@ -1041,7 +1041,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                         ),
                       ),
                       subtitle: Text(
-                        'Sent to ${_automationPolicy?.notificationRecipientHint ?? 'your Known User email'}. Only updates for this report; every email includes an unsubscribe link.',
+                        'We’ll send one email to ${_automationPolicy?.notificationRecipientHint ?? 'your Known User email'} after the fix is available in this environment. It includes an unsubscribe link.',
                         style: TextStyle(color: colors.onSurfaceMuted),
                       ),
                       value: _notifyOnResolution,

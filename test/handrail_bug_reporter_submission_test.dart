@@ -215,7 +215,7 @@ void main() {
             'reporter_notifications': <String, Object?>{
               'available': true,
               'recipient_hint': 'a***@example.com',
-              'lifecycles': <String>['fixed', 'deployed'],
+              'lifecycles': <String>['fixed'],
             },
             'ask_options': <Object?>[
               <String, Object?>{

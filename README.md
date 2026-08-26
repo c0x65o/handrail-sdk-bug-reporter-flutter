@@ -131,8 +131,8 @@ ordinary bug submission continues without verified attribution.
 
 ### Report update notifications
 
-The manual report sheet now supports an unchecked, report-scoped opt-in for
-Fixed and Deployed emails. Handrail makes the control available dynamically
+The manual report sheet now supports an unchecked, report-scoped **Email me
+when this is fixed** opt-in. Handrail makes the control available dynamically
 only when the current application session resolves to a verified Known User
 whose configured Display/email value is a valid email address:
 
@@ -149,7 +149,10 @@ manual email address. After Handrail accepts the report, the SDK posts explicit
 consent to `/api/mobile-bug-reports/bugs/:bugId/subscription`; Handrail verifies
 the session again and derives the recipient from Known Users. Subscription
 failure is shown separately and never changes the accepted report to an error.
-Every message includes a report-scoped unsubscribe link. Existing apps remain
+Handrail sends one email after release evidence confirms the fix is available
+in the environment where the report originated; internal Fixed and Deployed
+transitions do not each send mail. The message includes a report-scoped
+unsubscribe link. Existing apps remain
 source compatible; legacy reporter-email config is ignored and deprecated.
 
 ## Crash capture

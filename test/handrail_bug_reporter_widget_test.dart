@@ -222,7 +222,7 @@ void main() {
                     'reporter_notifications': <String, Object?>{
                       'available': true,
                       'recipient_hint': 'a***@example.com',
-                      'lifecycles': <String>['fixed', 'deployed'],
+                      'lifecycles': <String>['fixed'],
                     },
                     'ask_options': <Object?>[],
                   }),
@@ -249,7 +249,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final notificationLabel =
-        find.text('Email me when this is fixed or deployed');
+        find.text('Email me when this is fixed');
     expect(notificationLabel, findsOneWidget);
     expect(find.textContaining('a***@example.com'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Email address'), findsNothing);
@@ -295,7 +295,7 @@ void main() {
                     'reporter_notifications': <String, Object?>{
                       'available': false,
                       'recipient_hint': null,
-                      'lifecycles': <String>['fixed', 'deployed'],
+                      'lifecycles': <String>['fixed'],
                     },
                     'ask_options': <Object?>[],
                   }),
@@ -321,7 +321,7 @@ void main() {
     await tester.tap(find.text('Report bug'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Email me when this is fixed or deployed'), findsNothing);
+    expect(find.text('Email me when this is fixed'), findsNothing);
     expect(find.widgetWithText(TextFormField, 'Email address'), findsNothing);
   });
 
