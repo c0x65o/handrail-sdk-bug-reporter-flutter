@@ -220,7 +220,7 @@ void main() {
             'ask_options': <Object?>[
               <String, Object?>{
                 'key': 'deploy_production',
-                'label': 'Deploy the fix to production',
+                'label': 'Fix and deploy to production',
               },
             ],
           }),

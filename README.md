@@ -69,6 +69,24 @@ HandrailBugReporterConfig(
 );
 ```
 
+### Impact and Handrail severity
+
+Flutter and web reporters share the same four-level contract:
+
+| UI label | `HandrailBugImpact` | Handrail severity |
+| --- | --- | --- |
+| Critical | `HandrailBugImpact.critical` | `sev1` |
+| High | `HandrailBugImpact.high` | `sev2` |
+| Moderate | `HandrailBugImpact.moderate` | `sev3` |
+| Low | `HandrailBugImpact.low` | `sev4` |
+
+New custom integrations should set the typed
+`HandrailBugReportDraft.impact`. The SDK submits its canonical value through
+the existing `severity` intake field. Existing callers that set `severity`
+remain source compatible: display labels, `Medium`, and `sev1` through
+`sev4` are normalized before submission. The built-in report sheet defaults
+to Moderate and displays these exact four choices.
+
 `username` and `usernameProvider` are optional. When a non-blank username is
 available, the SDK includes it in manual and crash report payloads so Handrail
 can display who submitted the report. Use `usernameProvider` when the signed-in
@@ -99,16 +117,17 @@ When the report sheet opens, the SDK calls
 `GET /api/mobile-bug-reports/policy` with the same report-token and current
 application-session headers used for submission. Handrail resolves the current
 reporter server-side and returns only that reporter's access tier and available
-`Ask` controls; the SDK never downloads the Known Users directory.
+deploy controls; the SDK never downloads the Known Users directory.
 
-The form renders returned controls such as Verify, Repair proposal, Fix, Deploy
-to staging, and Deploy to production as optional checkboxes. It intentionally
-does not display low/medium/high risk choices. Selected controls are submitted
-under `automation_requests`; Handrail reclassifies the report and applies the
-exact risk row plus the existing workflow and deployment safety gates.
+Verification and repair proposals are automatic. The form renders only the
+returned Fix and deploy to staging and Fix and deploy to production controls as
+optional checkboxes. It intentionally does not display change-risk choices.
+Selected controls are submitted under `automation_requests`; Handrail applies
+the reporter's tier policy plus the existing workflow and deployment safety
+gates.
 
 Policy discovery is best-effort and falls back after five seconds by default.
-If it is unavailable, stalls, or returns no `Ask` controls, ordinary bug
+If it is unavailable, stalls, or returns no deploy controls, ordinary bug
 reporting remains available and no automation options are shown. Apps may set
 `policyDiscoveryTimeout` to a different bounded duration; it does not affect
 report submission. When an application-session provider is configured, the SDK

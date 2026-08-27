@@ -398,6 +398,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Report bug'));
     await tester.pumpAndSettle();
+    expect(find.text('Critical'), findsOneWidget);
+    expect(find.text('Moderate'), findsOneWidget);
+    expect(find.text('Medium'), findsNothing);
     await tester.tap(find.text('High'));
     await tester.pump();
     expect(
@@ -424,7 +427,7 @@ void main() {
     expect(submittedRequest?.method, 'POST');
     expect(submittedRequest?.url.toString(), '/api/mobile-bug-reports');
     expect(submittedPayload?['app_brightness'], 'dark');
-    expect(submittedPayload?['severity'], 'High');
+    expect(submittedPayload?['severity'], 'high');
     expect(submittedPayload?['app_version'], '1.3.225');
     expect(submittedPayload?['build_number'], '1');
     expect(submittedPayload?['commit_sha'], 'widget-commit-sha');
@@ -456,7 +459,7 @@ void main() {
   });
 
   testWidgets(
-      'policy Ask controls render without risk labels and submit selections',
+      'policy deploy controls render without risk labels and submit selections',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
@@ -490,11 +493,11 @@ void main() {
                       },
                       <String, Object?>{
                         'key': 'deploy_staging',
-                        'label': 'Deploy the fix to staging',
+                        'label': 'Fix and deploy to staging',
                       },
                       <String, Object?>{
                         'key': 'deploy_production',
-                        'label': 'Deploy the fix to production',
+                        'label': 'Fix and deploy to production',
                       },
                     ],
                   }),
@@ -525,8 +528,8 @@ void main() {
     await tester.tap(find.text('Report bug'));
     await tester.pumpAndSettle();
 
-    final stagingOption = find.text('Deploy the fix to staging');
-    final productionOption = find.text('Deploy the fix to production');
+    final stagingOption = find.text('Fix and deploy to staging');
+    final productionOption = find.text('Fix and deploy to production');
     expect(stagingOption, findsOneWidget);
     expect(productionOption, findsOneWidget);
     expect(find.textContaining('low risk'), findsNothing);
@@ -605,7 +608,7 @@ void main() {
                       ? <Object?>[
                           <String, Object?>{
                             'key': 'deploy_production',
-                            'label': 'Deploy the fix to production',
+                            'label': 'Fix and deploy to production',
                           },
                         ]
                       : const <Object?>[],
@@ -635,10 +638,10 @@ void main() {
 
     expect(sessionProviderCalls, 2);
     expect(policyRequests, 2);
-    expect(find.text('Deploy the fix to production'), findsOneWidget);
+    expect(find.text('Fix and deploy to production'), findsOneWidget);
   });
 
-  testWidgets('automation options stay hidden when policy has no Ask controls',
+  testWidgets('automation options stay hidden when policy has no deploy controls',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -665,7 +668,7 @@ void main() {
                     'ask_options': const <Object?>[
                       <String, Object?>{
                         'key': 'deploy_production',
-                        'label': 'Deploy the fix to production',
+                        'label': 'Fix and deploy to production',
                       },
                     ],
                   }),

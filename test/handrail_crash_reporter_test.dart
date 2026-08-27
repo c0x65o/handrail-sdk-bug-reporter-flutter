@@ -79,7 +79,7 @@ void main() {
     expect(result?.isSuccess, isTrue);
     expect(submittedPayload?['source'], handrailFlutterSdkCrashSource);
     expect(submittedPayload?['title'], 'Unhandled app error: StateError');
-    expect(submittedPayload?['severity'], 'sev1');
+    expect(submittedPayload?['severity'], 'critical');
     expect(submittedPayload?['project_id'], 'project-123');
     expect(submittedPayload, isNot(contains('project_slug')));
     expect(submittedPayload?['environment'], 'staging');

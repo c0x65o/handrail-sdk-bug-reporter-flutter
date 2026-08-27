@@ -11,6 +11,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 
 import 'handrail_app_build_metadata.dart';
 import 'handrail_bug_automation_policy.dart';
+import 'handrail_bug_impact.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_payload.dart';
 import 'handrail_bug_reporter_sdk_metadata.dart';
@@ -578,7 +579,7 @@ class _ReportSheet extends StatefulWidget {
 class _ReportSheetState extends State<_ReportSheet> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
-  String _severity = _bugReportSeverityMedium;
+  HandrailBugImpact _impact = HandrailBugImpact.moderate;
   late bool _includeScreenshot;
   final Set<HandrailBugAutomationOption> _automationRequests = {};
   bool _notifyOnResolution = false;
@@ -592,9 +593,6 @@ class _ReportSheetState extends State<_ReportSheet> {
   String? _errorMessage;
 
   static const int _descriptionMaxLength = 2000;
-  static const String _bugReportSeverityHigh = 'High';
-  static const String _bugReportSeverityMedium = 'Medium';
-  static const String _bugReportSeverityLow = 'Low';
   static const BorderRadius _sheetRadius =
       BorderRadius.all(Radius.circular(36));
 
@@ -732,7 +730,7 @@ class _ReportSheetState extends State<_ReportSheet> {
           draft: HandrailBugReportDraft(
             title: _buildTitle(_descriptionController.text),
             description: _descriptionController.text.trim(),
-            severity: _severity,
+            impact: _impact,
             screenshotBase64:
                 _includeScreenshot ? widget.screenshotBase64 : null,
             screenshotFilename:
@@ -949,35 +947,39 @@ class _ReportSheetState extends State<_ReportSheet> {
                   ),
                   const SizedBox(height: 40),
                   Text(
-                    'Severity',
+                    'Impact',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: colors.onSurface,
                         ),
                   ),
                   const SizedBox(height: 10),
-                  SegmentedButton<String>(
+                  SegmentedButton<HandrailBugImpact>(
                     showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment<String>(
-                        value: _bugReportSeverityHigh,
+                    segments: const <ButtonSegment<HandrailBugImpact>>[
+                      ButtonSegment(
+                        value: HandrailBugImpact.critical,
+                        label: Text('Critical'),
+                      ),
+                      ButtonSegment(
+                        value: HandrailBugImpact.high,
                         label: Text('High'),
                       ),
-                      ButtonSegment<String>(
-                        value: _bugReportSeverityMedium,
-                        label: Text('Medium'),
+                      ButtonSegment(
+                        value: HandrailBugImpact.moderate,
+                        label: Text('Moderate'),
                       ),
-                      ButtonSegment<String>(
-                        value: _bugReportSeverityLow,
+                      ButtonSegment(
+                        value: HandrailBugImpact.low,
                         label: Text('Low'),
                       ),
                     ],
-                    selected: <String>{_severity},
+                    selected: <HandrailBugImpact>{_impact},
                     onSelectionChanged: submitting
                         ? null
                         : (values) {
                             setState(() {
-                              _severity = values.first;
+                              _impact = values.first;
                             });
                           },
                   ),

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'handrail_app_build_metadata.dart';
+import 'handrail_bug_impact.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_payload.dart';
 import 'handrail_bug_reporter_submission.dart';
@@ -304,7 +305,7 @@ class HandrailCrashReporter {
           recentLogs: recentLogs,
           context: context,
         ),
-        severity: fatal ? 'sev1' : 'sev2',
+        impact: fatal ? HandrailBugImpact.critical : HandrailBugImpact.high,
         source: handrailFlutterSdkCrashSource,
         metadata: crashMetadata,
       ),

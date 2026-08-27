@@ -1,4 +1,5 @@
 export 'src/handrail_bug_reporter.dart';
+export 'src/handrail_bug_impact.dart';
 export 'src/handrail_bug_automation_policy.dart';
 export 'src/handrail_bug_reporter_config.dart';
 export 'src/handrail_bug_reporter_payload.dart';

@@ -60,7 +60,7 @@ void main() {
       'app_brightness': 'dark',
       'title': 'Checkout freezes',
       'description': 'The checkout screen locks after tapping submit.',
-      'severity': 'sev3',
+      'severity': 'moderate',
       'profile_key': 'profile-key',
       'reporter_assertion': <String, Object?>{
         'version': 1,
@@ -126,7 +126,7 @@ void main() {
     expect(payload.toJson(), containsPair('reporter_sdk_ref', 'v0.1.19'));
     expect(payload.toJson(), containsPair('app_version', '1.3.105'));
     expect(payload.toJson(), containsPair('build_number', '217'));
-    expect(payload.toJson(), containsPair('severity', 'sev3'));
+    expect(payload.toJson(), containsPair('severity', 'moderate'));
   });
 
   test('payload omits a blank optional username', () {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'handrail_bug_automation_policy.dart';
+import 'handrail_bug_impact.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_sdk_metadata.dart';
 
@@ -24,6 +25,8 @@ class HandrailBugReportDraft {
   const HandrailBugReportDraft({
     required this.title,
     required this.description,
+    this.impact,
+    @Deprecated('Use impact. Legacy labels and sev1..sev4 remain accepted.')
     this.severity,
     this.source,
     this.metadata = const <String, Object?>{},
@@ -41,6 +44,8 @@ class HandrailBugReportDraft {
 
   final String title;
   final String description;
+  final HandrailBugImpact? impact;
+  @Deprecated('Use impact. Legacy labels and sev1..sev4 remain accepted.')
   final String? severity;
   final String? source;
   final Map<String, Object?> metadata;
@@ -85,6 +90,8 @@ class HandrailBugReportPayload {
     this.notificationEmail,
     this.source,
     this.metadata = const <String, Object?>{},
+    this.impact,
+    @Deprecated('Use impact. Legacy labels and sev1..sev4 remain accepted.')
     this.severity,
     this.screenshotFilename,
     this.screenshotMimeType,
@@ -122,6 +129,7 @@ class HandrailBugReportPayload {
       appBrightness: draft.appBrightness,
       title: draft.title,
       description: draft.description,
+      impact: draft.impact,
       severity: draft.severity,
       source: draft.source,
       metadata: draft.metadata,
@@ -154,6 +162,8 @@ class HandrailBugReportPayload {
   final String? appBrightness;
   final String title;
   final String description;
+  final HandrailBugImpact? impact;
+  @Deprecated('Use impact. Legacy labels and sev1..sev4 remain accepted.')
   final String? severity;
   final String? source;
   final Map<String, Object?> metadata;
@@ -174,6 +184,7 @@ class HandrailBugReportPayload {
   final String reporterSdkRef;
 
   Map<String, Object?> toJson() {
+    final normalizedImpact = impact ?? normalizeHandrailBugImpact(severity);
     final json = <String, Object?>{
       'environment': environment,
       'app_flavor': appFlavor,
@@ -187,7 +198,7 @@ class HandrailBugReportPayload {
       'app_brightness': appBrightness,
       'title': title,
       'description': description,
-      'severity': severity,
+      'severity': normalizedImpact?.canonicalValue,
       'profile_key': profileKey,
       if (reporterAssertion?.isUsable == true)
         'reporter_assertion': reporterAssertion!.toJson(),

@@ -4,8 +4,8 @@ enum HandrailBugAutomationOption {
   autoVerify('auto_verify', 'Verify this issue'),
   repairProposal('repair_proposal', 'Prepare a repair proposal'),
   fix('fix', 'Fix this issue'),
-  deployStaging('deploy_staging', 'Deploy the fix to staging'),
-  deployProduction('deploy_production', 'Deploy the fix to production');
+  deployStaging('deploy_staging', 'Fix and deploy to staging'),
+  deployProduction('deploy_production', 'Fix and deploy to production');
 
   const HandrailBugAutomationOption(this.key, this.label);
 
