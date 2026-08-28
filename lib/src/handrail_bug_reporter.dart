@@ -581,7 +581,6 @@ class _ReportSheetState extends State<_ReportSheet> {
   final _descriptionController = TextEditingController();
   HandrailBugImpact _impact = HandrailBugImpact.moderate;
   late bool _includeScreenshot;
-  final Set<HandrailBugAutomationOption> _automationRequests = {};
   bool _notifyOnResolution = false;
   HandrailBugAutomationPolicy? _automationPolicy;
   bool _automationPolicyLoading = true;
@@ -686,9 +685,6 @@ class _ReportSheetState extends State<_ReportSheet> {
       setState(() {
         _automationPolicy = policy;
         _automationPolicyLoading = false;
-        _automationRequests.removeWhere(
-          (option) => policy?.askOptions.contains(option) != true,
-        );
       });
     } catch (_) {
       // Policy discovery must never block vanilla bug reporting.
@@ -741,9 +737,6 @@ class _ReportSheetState extends State<_ReportSheet> {
                 ? widget.screenshotFailureReason
                 : null,
             appBrightness: widget.appBrightness.name,
-            automationRequests: Set<HandrailBugAutomationOption>.of(
-              _automationRequests,
-            ),
             notifyOnResolution: _notifyOnResolution,
           ),
           device: metadata,
@@ -1059,16 +1052,16 @@ class _ReportSheetState extends State<_ReportSheet> {
                     Divider(height: 1, color: colors.divider),
                     const SizedBox(height: 22),
                     Text(
-                      'Loading optional actions…',
+                      'Loading automation policy…',
                       style: TextStyle(color: colors.onSurfaceMuted),
                     ),
-                  ] else if (_automationPolicy?.askOptions.isNotEmpty ==
-                      true) ...[
+                  ] else if (_automationPolicy?.automaticFixMaxRisk !=
+                      null) ...[
                     const SizedBox(height: 24),
                     Divider(height: 1, color: colors.divider),
                     const SizedBox(height: 22),
                     Text(
-                      'Optional Handrail actions',
+                      'Automation policy',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: colors.onSurface,
@@ -1076,36 +1069,24 @@ class _ReportSheetState extends State<_ReportSheet> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Handrail will still apply project risk and deployment safety rules.',
+                      '${_automationPolicy!.role == 'maintainer' ? 'Maintainer' : _automationPolicy!.role == 'contributor' ? 'Contributor' : 'Requester'} policy',
                       style: TextStyle(color: colors.onSurfaceMuted),
                     ),
-                    const SizedBox(height: 10),
-                    for (final option in HandrailBugAutomationOption.values)
-                      if (_automationPolicy!.askOptions.contains(option))
-                        CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          controlAffinity: ListTileControlAffinity.trailing,
-                          title: Text(
-                            option.label,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              color: colors.onSurface,
-                            ),
-                          ),
-                          value: _automationRequests.contains(option),
-                          onChanged: submitting
-                              ? null
-                              : (selected) {
-                                  setState(() {
-                                    if (selected == true) {
-                                      _automationRequests.add(option);
-                                    } else {
-                                      _automationRequests.remove(option);
-                                    }
-                                  });
-                                },
-                        ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Automatic fix: ${_automationPolicy!.automaticFixMaxRisk == 'none' ? 'disabled' : 'up to ${_automationPolicy!.automaticFixMaxRisk} risk'}',
+                      style: TextStyle(color: colors.onSurfaceMuted),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Production for verified ${_impact.name} impact: ${_automationPolicy!.productionMaxRiskByImpact[_impact.name] == 'none' ? 'disabled' : 'up to ${_automationPolicy!.productionMaxRiskByImpact[_impact.name] ?? 'unrecorded'} risk'}',
+                      style: TextStyle(color: colors.onSurfaceMuted),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Deployment is decided by verified impact and change risk. This report cannot authorize deployment.',
+                      style: TextStyle(color: colors.onSurfaceMuted),
+                    ),
                   ],
                   if (widget.screenshotBase64 != null) ...[
                     const SizedBox(height: 24),

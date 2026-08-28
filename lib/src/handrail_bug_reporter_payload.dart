@@ -206,11 +206,6 @@ class HandrailBugReportPayload {
       'screenshot_filename': screenshotFilename,
       'screenshot_mime_type': screenshotMimeType,
       'screenshot_capture_error': screenshotCaptureError,
-      'deploy_fixed_app_to_stores': deployFixedAppToStores,
-      if (automationRequests.isNotEmpty)
-        'automation_requests': <String, Object?>{
-          for (final option in automationRequests) option.key: true,
-        },
       'reporter_sdk_version': reporterSdkVersion,
       'reporter_sdk_commit': reporterSdkCommit,
       'reporter_sdk_ref': reporterSdkRef,

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+@Deprecated('Bug reporters no longer select automation or deployment.')
 enum HandrailBugAutomationOption {
   autoVerify('auto_verify', 'Verify this issue'),
   repairProposal('repair_proposal', 'Prepare a repair proposal'),
@@ -29,6 +30,9 @@ class HandrailBugAutomationPolicy {
     required this.identityVerified,
     required this.accessLevel,
     required this.askOptions,
+    this.role,
+    this.automaticFixMaxRisk,
+    this.productionMaxRiskByImpact = const <String, String>{},
     required this.notificationAvailable,
     this.notificationRecipientHint,
   });
@@ -38,21 +42,19 @@ class HandrailBugAutomationPolicy {
     final reporterJson = reporter is Map
         ? Map<String, Object?>.from(reporter)
         : const <String, Object?>{};
-    final rawOptions = json['ask_options'];
     final notification = json['reporter_notifications'];
     final notificationJson = notification is Map
         ? Map<String, Object?>.from(notification)
         : const <String, Object?>{};
-    final askOptions = <HandrailBugAutomationOption>{};
-    if (rawOptions is List) {
-      for (final rawOption in rawOptions) {
-        final optionJson = rawOption is Map
-            ? Map<String, Object?>.from(rawOption)
-            : const <String, Object?>{};
-        final option = HandrailBugAutomationOption.fromKey(optionJson['key']);
-        if (option != null) askOptions.add(option);
-      }
-    }
+    final automationPolicy = json['automation_policy'];
+    final automationPolicyJson = automationPolicy is Map
+        ? Map<String, Object?>.from(automationPolicy)
+        : const <String, Object?>{};
+    final productionPolicy =
+        automationPolicyJson['production_max_risk_by_impact'];
+    final productionPolicyJson = productionPolicy is Map
+        ? Map<String, Object?>.from(productionPolicy)
+        : const <String, Object?>{};
     return HandrailBugAutomationPolicy(
       schemaVersion:
           json['schema_version'] is int ? json['schema_version']! as int : 1,
@@ -60,10 +62,16 @@ class HandrailBugAutomationPolicy {
       environment: json['environment']?.toString() ?? '',
       identityVerified: reporterJson['identity_verified'] == true,
       accessLevel: reporterJson['access_level']?.toString() ?? 'default',
-      askOptions: Set<HandrailBugAutomationOption>.unmodifiable(askOptions),
+      role: reporterJson['role']?.toString(),
+      askOptions: const <HandrailBugAutomationOption>{},
+      automaticFixMaxRisk:
+          automationPolicyJson['automatic_fix_max_risk']?.toString(),
+      productionMaxRiskByImpact: Map<String, String>.unmodifiable({
+        for (final entry in productionPolicyJson.entries)
+          entry.key: entry.value.toString(),
+      }),
       notificationAvailable: notificationJson['available'] == true,
-      notificationRecipientHint:
-          notificationJson['recipient_hint']?.toString(),
+      notificationRecipientHint: notificationJson['recipient_hint']?.toString(),
     );
   }
 
@@ -72,7 +80,10 @@ class HandrailBugAutomationPolicy {
   final String environment;
   final bool identityVerified;
   final String accessLevel;
+  final String? role;
   final Set<HandrailBugAutomationOption> askOptions;
+  final String? automaticFixMaxRisk;
+  final Map<String, String> productionMaxRiskByImpact;
   final bool notificationAvailable;
   final String? notificationRecipientHint;
 }
