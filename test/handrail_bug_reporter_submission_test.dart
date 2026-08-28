@@ -211,18 +211,24 @@ void main() {
             'reporter': <String, Object?>{
               'identity_verified': true,
               'access_level': 'full_access',
+              'role': 'maintainer',
             },
             'reporter_notifications': <String, Object?>{
               'available': true,
               'recipient_hint': 'a***@example.com',
               'lifecycles': <String>['fixed'],
             },
-            'ask_options': <Object?>[
-              <String, Object?>{
-                'key': 'deploy_production',
-                'label': 'Fix and deploy to production',
+            'ask_options': const <Object?>[],
+            'automation_policy': <String, Object?>{
+              'schema_version': 3,
+              'automatic_fix_max_risk': 'high',
+              'production_max_risk_by_impact': <String, Object?>{
+                'critical': 'moderate',
+                'high': 'low',
+                'moderate': 'none',
+                'low': 'none',
               },
-            ],
+            },
           }),
           200,
         );
@@ -248,12 +254,10 @@ void main() {
     expect(policy?.accessLevel, 'full_access');
     expect(policy?.notificationAvailable, isTrue);
     expect(policy?.notificationRecipientHint, 'a***@example.com');
-    expect(
-      policy?.askOptions,
-      <HandrailBugAutomationOption>{
-        HandrailBugAutomationOption.deployProduction,
-      },
-    );
+    expect(policy?.askOptions, isEmpty);
+    expect(policy?.role, 'maintainer');
+    expect(policy?.automaticFixMaxRisk, 'high');
+    expect(policy?.productionMaxRiskByImpact['critical'], 'moderate');
   });
 
   test('policy discovery falls back when the policy request stalls', () async {

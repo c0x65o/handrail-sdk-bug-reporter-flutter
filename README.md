@@ -111,28 +111,25 @@ expired, revoked, ambiguous, or invalid sessions leave attribution unverified.
 Authentication selects the reporter's Default, User, or Full Access policy
 column but does not grant repair or deployment authority by itself.
 
-### Optional automation controls
+### Automation policy
 
 When the report sheet opens, the SDK calls
 `GET /api/mobile-bug-reports/policy` with the same report-token and current
 application-session headers used for submission. Handrail resolves the current
-reporter server-side and returns only that reporter's access tier and available
-deploy controls; the SDK never downloads the Known Users directory.
+reporter server-side and returns only that reporter's role policy; the SDK
+never downloads the Known Users directory.
 
-Verification and repair proposals are automatic. The form renders only the
-returned Fix and deploy to staging and Fix and deploy to production controls as
-optional checkboxes. It intentionally does not display change-risk choices.
-Selected controls are submitted under `automation_requests`; Handrail applies
-the reporter's tier policy plus the existing workflow and deployment safety
-gates.
+The form shows the role's automatic-fix threshold and the production threshold
+for the selected impact as read-only context. The reporter cannot choose
+staging or production deployment. Handrail decides delivery only after impact
+and change risk are verified against project policy.
 
 Policy discovery is best-effort and falls back after five seconds by default.
-If it is unavailable, stalls, or returns no deploy controls, ordinary bug
-reporting remains available and no automation options are shown. Apps may set
+If it is unavailable or stalls, ordinary bug reporting remains available. Apps may set
 `policyDiscoveryTimeout` to a different bounded duration; it does not affect
 report submission. When an application-session provider is configured, the SDK
 briefly re-resolves it after an unverified response so opening the sheet during
-auth hydration does not permanently hide the authenticated controls.
+auth hydration does not permanently hide the authenticated policy.
 
 Never copy the raw session token into static reporter config, browser storage,
 preferences, local databases, files, logs, analytics, breadcrumbs, crash

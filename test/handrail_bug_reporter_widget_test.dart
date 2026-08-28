@@ -248,8 +248,7 @@ void main() {
     await tester.tap(find.text('Report bug'));
     await tester.pumpAndSettle();
 
-    final notificationLabel =
-        find.text('Email me when this is fixed');
+    final notificationLabel = find.text('Email me when this is fixed');
     expect(notificationLabel, findsOneWidget);
     expect(find.textContaining('a***@example.com'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Email address'), findsNothing);
@@ -459,7 +458,7 @@ void main() {
   });
 
   testWidgets(
-      'policy deploy controls render without risk labels and submit selections',
+      'role automation policy renders read-only and submission has no deploy controls',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
@@ -485,21 +484,19 @@ void main() {
                     'reporter': <String, Object?>{
                       'identity_verified': true,
                       'access_level': 'user',
+                      'role': 'contributor',
                     },
-                    'ask_options': <Object?>[
-                      <String, Object?>{
-                        'key': 'fix',
-                        'label': 'Fix this issue',
+                    'ask_options': const <Object?>[],
+                    'automation_policy': <String, Object?>{
+                      'schema_version': 3,
+                      'automatic_fix_max_risk': 'moderate',
+                      'production_max_risk_by_impact': <String, Object?>{
+                        'critical': 'moderate',
+                        'high': 'low',
+                        'moderate': 'none',
+                        'low': 'none',
                       },
-                      <String, Object?>{
-                        'key': 'deploy_staging',
-                        'label': 'Fix and deploy to staging',
-                      },
-                      <String, Object?>{
-                        'key': 'deploy_production',
-                        'label': 'Fix and deploy to production',
-                      },
-                    ],
+                    },
                   }),
                   200,
                 );
@@ -528,16 +525,12 @@ void main() {
     await tester.tap(find.text('Report bug'));
     await tester.pumpAndSettle();
 
-    final stagingOption = find.text('Fix and deploy to staging');
-    final productionOption = find.text('Fix and deploy to production');
-    expect(stagingOption, findsOneWidget);
-    expect(productionOption, findsOneWidget);
-    expect(find.textContaining('low risk'), findsNothing);
-    expect(find.textContaining('medium risk'), findsNothing);
-    await tester.ensureVisible(stagingOption);
-    await tester.tap(stagingOption);
-    await tester.ensureVisible(productionOption);
-    await tester.tap(productionOption);
+    expect(find.text('Automation policy'), findsOneWidget);
+    expect(find.text('Contributor policy'), findsOneWidget);
+    expect(find.textContaining('Automatic fix: up to moderate risk'),
+        findsOneWidget);
+    expect(find.text('Fix and deploy to staging'), findsNothing);
+    expect(find.text('Fix and deploy to production'), findsNothing);
     await tester.enterText(
       find.byType(TextFormField),
       'The staging app still shows the broken behavior.',
@@ -552,13 +545,7 @@ void main() {
     }
 
     expect(submittedPayload?['environment'], 'staging');
-    expect(
-      submittedPayload?['automation_requests'],
-      <String, Object?>{
-        'deploy_staging': true,
-        'deploy_production': true,
-      },
-    );
+    expect(submittedPayload, isNot(contains('automation_requests')));
   });
 
   testWidgets(
@@ -603,15 +590,20 @@ void main() {
                   'reporter': <String, Object?>{
                     'identity_verified': verified,
                     'access_level': verified ? 'full_access' : 'default',
+                    'role': verified ? 'maintainer' : null,
                   },
-                  'ask_options': verified
-                      ? <Object?>[
-                          <String, Object?>{
-                            'key': 'deploy_production',
-                            'label': 'Fix and deploy to production',
-                          },
-                        ]
-                      : const <Object?>[],
+                  'ask_options': const <Object?>[],
+                  if (verified)
+                    'automation_policy': <String, Object?>{
+                      'schema_version': 3,
+                      'automatic_fix_max_risk': 'high',
+                      'production_max_risk_by_impact': <String, Object?>{
+                        'critical': 'moderate',
+                        'high': 'low',
+                        'moderate': 'none',
+                        'low': 'none',
+                      },
+                    },
                 }),
                 200,
               );
@@ -638,10 +630,13 @@ void main() {
 
     expect(sessionProviderCalls, 2);
     expect(policyRequests, 2);
-    expect(find.text('Fix and deploy to production'), findsOneWidget);
+    expect(find.text('Automation policy'), findsOneWidget);
+    expect(find.text('Maintainer policy'), findsOneWidget);
+    expect(find.text('Fix and deploy to production'), findsNothing);
   });
 
-  testWidgets('automation options stay hidden when policy has no deploy controls',
+  testWidgets(
+      'automation options stay hidden when policy has no deploy controls',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -735,7 +730,7 @@ void main() {
     await tester.tap(find.text('Report bug'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Loading optional actions…'), findsNothing);
+    expect(find.text('Loading automation policy…'), findsNothing);
     expect(find.text('Optional Handrail actions'), findsNothing);
     expect(find.text('What happened?'), findsOneWidget);
   });
