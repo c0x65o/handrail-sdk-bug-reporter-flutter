@@ -1,4 +1,4 @@
-# handrail-sdk-feedback-flutter
+# handrail-sdk-bug-reporter-flutter
 
 Reusable Flutter package for submitting Handrail mobile bug reports.
 
@@ -8,7 +8,7 @@ Reusable Flutter package for submitting Handrail mobile bug reports.
 dependencies:
   handrail_bug_reporter:
     git:
-      url: https://github.com/c0x65o/handrail-sdk-feedback-flutter.git
+      url: https://github.com/c0x65o/handrail-sdk-bug-reporter-flutter.git
       ref: release/0.1
 ```
 
