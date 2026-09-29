@@ -31,6 +31,7 @@ class HandrailBugAutomationPolicy {
     required this.accessLevel,
     required this.askOptions,
     this.role,
+    this.allUsersHistory = false,
     this.automaticFixMaxRisk,
     this.productionMaxRiskByImpact = const <String, String>{},
     required this.notificationAvailable,
@@ -61,6 +62,9 @@ class HandrailBugAutomationPolicy {
       projectId: json['project_id']?.toString() ?? '',
       environment: json['environment']?.toString() ?? '',
       identityVerified: reporterJson['identity_verified'] == true,
+      allUsersHistory: reporterJson['identity_verified'] == true
+          && json['history'] is Map
+          && (json['history'] as Map)['all_users'] == true,
       accessLevel: reporterJson['access_level']?.toString() ?? 'default',
       role: reporterJson['role']?.toString(),
       askOptions: const <HandrailBugAutomationOption>{},
@@ -79,6 +83,7 @@ class HandrailBugAutomationPolicy {
   final String projectId;
   final String environment;
   final bool identityVerified;
+  final bool allUsersHistory;
   final String accessLevel;
   final String? role;
   final Set<HandrailBugAutomationOption> askOptions;

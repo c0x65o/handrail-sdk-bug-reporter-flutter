@@ -193,3 +193,13 @@ Crash submissions include the app route, version/build, commit SHA, device/OS,
 exception type, stack trace, recent logs, reporter SDK metadata, and structured
 crash metadata. Existing error handlers still run after the Handrail reporter,
 so Sentry or app-local handlers keep their current behavior.
+
+### History policy compatibility
+
+Verified policy discovery exposes `HandrailBugAutomationPolicy.allUsersHistory`
+(default false). Only literal server opt-in plus verified identity sets it true.
+The Flutter SDK currently has no report-history list/detail transport or history
+screen; this field does not add either, widen submission permissions, or grant
+access by itself. Any future history client must reverify the current session and
+server policy for each read. Existing reporting and screenshot behavior is
+unchanged.
