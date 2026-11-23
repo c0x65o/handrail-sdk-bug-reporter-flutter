@@ -102,6 +102,61 @@ class HandrailBugReportClient {
     }
   }
 
+  Future<Map<String, dynamic>> readHistory({
+    required Map<String, String> query,
+    required String sessionToken,
+  }) async {
+    final response = await _httpClient
+        .get(
+          endpoint.replace(
+              path: '${endpoint.path}/mine', queryParameters: query),
+          headers: _headers(applicationSessionToken: sessionToken),
+        )
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200)
+      throw StateError('Report history could not be loaded.');
+    final body = jsonDecode(response.body);
+    if (body is! Map<String, dynamic> || body['bugs'] is! List) {
+      throw const FormatException('Invalid history response.');
+    }
+    return body;
+  }
+
+  Future<void> answerQuestion({
+    required Map<String, String> query,
+    required String sessionToken,
+    required String bugId,
+    required String requestId,
+    String? option,
+    String? answer,
+  }) async {
+    if ((option ?? '').trim().isEmpty && (answer ?? '').trim().isEmpty) {
+      throw ArgumentError('Choose an option or enter an answer.');
+    }
+    final response = await _httpClient
+        .post(
+          endpoint.replace(pathSegments: [
+            ...endpoint.pathSegments,
+            'bugs',
+            bugId,
+            'information-requests',
+            requestId,
+            'answer'
+          ], queryParameters: query),
+          headers: _headers(applicationSessionToken: sessionToken),
+          body: jsonEncode({
+            if (option != null) 'option': option,
+            if (answer?.trim().isNotEmpty == true) 'answer': answer!.trim()
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200 ||
+        jsonDecode(response.body)['answered'] != true) {
+      throw StateError(
+          'The answer could not be saved. Refresh report history and try again.');
+    }
+  }
+
   Future<HandrailBugReportSubmissionResult> submit(
       HandrailBugReportPayload payload,
       {String? applicationSessionToken}) async {
@@ -117,7 +172,7 @@ class HandrailBugReportClient {
     } on Object {
       bugId = null;
     }
-    if (bugId == null || bugId!.isEmpty) {
+    if (bugId == null || bugId.isEmpty) {
       return HandrailBugReportSubmissionResult.success(
         statusCode: result.statusCode,
         body: result.body,
@@ -129,7 +184,7 @@ class HandrailBugReportClient {
       final response = await _httpClient.post(
         endpoint.replace(
           path:
-              '${endpoint.path.replaceFirst(RegExp(r'/+$'), '')}/bugs/${Uri.encodeComponent(bugId!)}/subscription',
+              '${endpoint.path.replaceFirst(RegExp(r'/+$'), '')}/bugs/${Uri.encodeComponent(bugId)}/subscription',
           queryParameters: <String, String>{
             if (payload.projectId?.trim().isNotEmpty == true)
               'project_id': payload.projectId!.trim()

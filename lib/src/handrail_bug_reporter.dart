@@ -12,6 +12,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'handrail_app_build_metadata.dart';
 import 'handrail_bug_automation_policy.dart';
 import 'handrail_bug_impact.dart';
+import 'handrail_bug_history.dart';
 import 'handrail_bug_reporter_config.dart';
 import 'handrail_bug_reporter_payload.dart';
 import 'handrail_bug_reporter_sdk_metadata.dart';
@@ -845,6 +846,24 @@ class _ReportSheetState extends State<_ReportSheet> {
                   ),
                 ),
               ),
+              if (_automationPolicy?.identityVerified == true)
+                TextButton(
+                  child: const Text('Report history'),
+                  onPressed: () {
+                    final client = widget.clientFactory?.call(widget.config) ??
+                        HandrailBugReportClient(
+                          apiBaseUrl: widget.config.apiBaseUrl,
+                          reportToken: widget.config.reportToken,
+                          endpointPath: widget.config.endpointPath,
+                        );
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      builder: (_) => HandrailBugHistory(config: widget.config, client: client),
+                    );
+                  },
+                ),
               if (widget.onShakeReportingChanged != null) ...[
                 const SizedBox(height: 28),
                 Divider(height: 1, color: colors.divider),

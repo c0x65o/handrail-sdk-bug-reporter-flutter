@@ -9,7 +9,7 @@ dependencies:
   handrail_bug_reporter:
     git:
       url: https://github.com/c0x65o/handrail-sdk-bug-reporter-flutter.git
-      ref: release/0.1
+      ref: <full SDK commit SHA>
 ```
 
 The Dart package name remains `handrail_bug_reporter`, so app imports stay:
@@ -18,20 +18,7 @@ The Dart package name remains `handrail_bug_reporter`, so app imports stay:
 import 'package:handrail_bug_reporter/handrail_bug_reporter.dart';
 ```
 
-For local workspace development, apps can point to this repo with a path dependency and run `flutter pub get`.
-
-Use `release/0.1` as the moving minor release channel for apps that should receive approved `0.1.x` SDK patches. Use immutable patch tags such as `v0.1.26` only when a build must stay fixed to one SDK patch release. Do not use `main` as the app dependency ref.
-
-## Release note
-
-The reporter-policy discovery and optional automation controls are included in
-`v0.1.50`. Apps should keep the dependency ref on `release/0.1`; the app
-lockfile records the exact commit that was pulled. To intentionally pull future
-approved `0.1.x` updates, run:
-
-```sh
-flutter pub upgrade handrail_bug_reporter
-```
+Pin the public HTTPS Git repository to a full commit SHA and commit the matching pubspec.lock.
 
 Submitted payloads include SDK diagnostics under explicit fields:
 
@@ -198,8 +185,4 @@ so Sentry or app-local handlers keep their current behavior.
 
 Verified policy discovery exposes `HandrailBugAutomationPolicy.allUsersHistory`
 (default false). Only literal server opt-in plus verified identity sets it true.
-The Flutter SDK currently has no report-history list/detail transport or history
-screen; this field does not add either, widen submission permissions, or grant
-access by itself. Any future history client must reverify the current session and
-server policy for each read. Existing reporting and screenshot behavior is
-unchanged.
+Verified users can open Report history in the reporter sheet. The SDK checks the current session and policy before each read. The server controls who can answer each clarification.

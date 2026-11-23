@@ -5,7 +5,7 @@ class HandrailBugReporterSdkMetadata {
 
   static const String version = String.fromEnvironment(
     'HANDRAIL_BUG_REPORTER_SDK_VERSION',
-    defaultValue: '0.2.0',
+    defaultValue: '0.3.0',
   );
 
   static const String commit = String.fromEnvironment(
