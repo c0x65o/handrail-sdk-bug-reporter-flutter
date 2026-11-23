@@ -97,11 +97,11 @@ class _HistoryState extends State<HandrailBugHistory> {
           Expanded(
               child: Text('Report history',
                   style: Theme.of(context).textTheme.titleLarge)),
-          IconButton(
-              tooltip: 'Refresh',
-              onPressed: loading ? null : load,
-              icon: const Icon(Icons.refresh)),
-          CloseButton()
+          TextButton(
+              onPressed: loading ? null : load, child: const Text('Refresh')),
+          TextButton(
+              onPressed: () => Navigator.maybePop(context),
+              child: const Text('Close')),
         ]),
         if (loading) const LinearProgressIndicator(),
         if (error != null) Text(error!),
@@ -193,18 +193,20 @@ class _QuestionState extends State<_Question> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       const SizedBox(height: 12),
       Text(q['question'], style: Theme.of(context).textTheme.titleSmall),
-      for (final choice
-          in (q['options'] is List ? q['options'] as List : const [])
-              .whereType<String>())
-        if (allowed && !sent)
+      Wrap(spacing: 6, runSpacing: 4, children: [
+        for (final choice
+            in (q['options'] is List ? q['options'] as List : const [])
+                .whereType<String>())
           ChoiceChip(
-              label: Text(choice),
-              selected: option == choice,
-              onSelected: sending
-                  ? null
-                  : (v) => setState(() => option = v ? choice : null))
-        else
-          Text(choice),
+            label: Text(choice),
+            selected:
+                reply is Map ? reply['option'] == choice : option == choice,
+            onSelected: allowed && !sent && !sending
+                ? (selected) =>
+                    setState(() => option = selected ? choice : null)
+                : null,
+          ),
+      ]),
       if (reply is Map)
         Text([reply['option'], reply['text']].whereType<String>().join(' · '))
       else if (!allowed)
